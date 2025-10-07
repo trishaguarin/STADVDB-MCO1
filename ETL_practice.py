@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, text
 source_conn = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="12345678",
-    database="stadvdb"
+    password="iloveariel",
+    database="stadvdb_source"
 )
 
 cursor = source_conn.cursor()
@@ -118,14 +118,17 @@ def normalize_category(value):
     if not value_str or value_str == "nan":
         return None
     elif value_str == "toy":
-        return "toys"
+        return "Toys"
     elif value_str == "men's apparel":
-        return "clothing"
+        return "Clothing"
+    elif value_str == "clothes":
+        return "Clothing"
     elif value_str == "make up":
-        return "makeup"
+        return "Makeup"
     elif value_str == "laptops":
-        return "gadgets"
-        
+        return "Gadgets"
+    elif value_str == "bag":
+            return "Bags"
     return value_str.title()
 
 products['category'] = products['category'].apply(normalize_category)
@@ -144,8 +147,6 @@ users['dateOfBirth'] = users['dateOfBirth'].apply(parse_date)
 users['createdAt'] = pd.to_datetime(users['createdAt']).dt.date
 users['updatedAt'] = pd.to_datetime(users['updatedAt']).dt.date
 orders_merged['deliveryDate'] = orders_merged['deliveryDate'].apply(parse_date)
-orders_merged['createdAt'] = pd.to_datetime(orders_merged['createdAt']).dt.date
-orders_merged['updatedAt'] = pd.to_datetime(orders_merged['updatedAt']).dt.date
 products['createdAt'] = pd.to_datetime(products['createdAt']).dt.date
 products['updatedAt'] = pd.to_datetime(products['updatedAt']).dt.date
 
