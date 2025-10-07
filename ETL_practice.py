@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, text
 source_conn = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="iloveariel",
-    database="stadvdb_source"
+    password="12345678",
+    database="stadvdb"
 )
 
 cursor = source_conn.cursor()
@@ -57,7 +57,7 @@ couriers.rename(columns={'id': 'courierID', 'name': 'courierName'}, inplace=True
 
 orders.drop(columns=['orderNumber'], inplace=True, errors='ignore')
 products.drop(columns=['description', 'productCode'], inplace=True, errors='ignore')
-riders.drop(columns=['createdAt', 'updatedAt'], inplace=True, errors='ignore')
+riders.drop(columns=['age', 'gender'], inplace=True, errors='ignore')
 users.drop(columns=['username'], inplace=True, errors='ignore')
 
 # Drop description (PRODUCT)
@@ -96,7 +96,7 @@ print(riders_merged.head())
 
 # 4 - Change formats and datatype
 
-# gender -> user, rider
+# gender -> user 
 def normalize_gender(value):
     if pd.isna(value):
         return None
@@ -107,7 +107,6 @@ def normalize_gender(value):
     elif value_str.startswith("f"):
         return 'F'
     
-riders_merged['gender'] = riders_merged['gender'].apply(normalize_gender)
 users['gender'] = users['gender'].apply(normalize_gender)
 
 
@@ -118,6 +117,15 @@ def normalize_category(value):
     value_str = str(value).strip().lower()
     if not value_str or value_str == "nan":
         return None
+    elif value_str == "toy":
+        return "toys"
+    elif value_str == "men's apparel":
+        return "clothing"
+    elif value_str == "make up":
+        return "makeup"
+    elif value_str == "laptops":
+        return "gadgets"
+        
     return value_str.title()
 
 products['category'] = products['category'].apply(normalize_category)
