@@ -1,29 +1,36 @@
-from flask import Flask, jsonify
-import mysql.connector
+from flask import Flask, jsonify, request
+from sqlalchemy import create_engine, text
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
+
+# Database connection
+engine = create_engine(
+    "mysql+mysqlconnector://chrystel:Chrystel%401234@35.240.197.184:3306/stadvdb"
+)
 
 @app.route('/')
 def hello():
-    return "Flask is working!"
+    return "OLAP Backend API etc etc"
 
-@app.route('/test-db')
-def test_db():
-    try:
-        conn = mysql.connector.connect(
-            host="35.240.197.184",
-            user="chrystel",
-            password="Chrystel%401234",
-            database="stadvdb"
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM FactOrders")
-        count = cursor.fetchone()[0]
-        cursor.close()
-        conn.close()
-        return jsonify({"status": "Database connected!", "fact_orders_count": count})
-    except Exception as e:
-        return jsonify({"error": str(e)})
+# ========== ORDERS REPORTS ==========
+
+
+# ========== SALES REPORTS ==========
+
+
+# ========== CUSTOMER REPORTS ==========
+
+
+# ========== PRODUCT REPORTS ==========
+
+
+# ========== RIDER REPORTS ==========
+
+
+# test
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, host='0.0.0.0')
