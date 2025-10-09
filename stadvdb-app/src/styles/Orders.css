@@ -285,6 +285,35 @@ html, body, #root {
   color: white;
 }
 
+.main-content {
+  flex-grow: 1;
+  background: #FCF3E2;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 3rem;
+  height: 702px;
+  width: 300px;
+}
+
+.statistical-data {
+  flex-grow: 1;
+  background: #F4E6CC;
+  padding: 2;
+  height: 635px;
+  width: 250px;
+  margin-left: 825px;
+  border-radius: 8px;
+  padding: 0;
+  position: relative;
+}
+
+.statistical-data h2 {
+  text-align: center;
+  padding-top: 2rem;
+  margin: 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .dashboard-content {

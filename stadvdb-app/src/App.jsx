@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import OrdersAnalytics from './assets/pages/Orders.jsx';
 
 function App() {
@@ -8,6 +8,7 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/Orders" element={<OrdersAnalytics/>} />
+          <Route path="/" element={<Navigate to="/Orders" replace />} />
         </Routes>
       </div>
     </Router>

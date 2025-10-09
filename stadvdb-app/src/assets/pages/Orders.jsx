@@ -26,6 +26,16 @@ const OrdersAnalytics = () => {
 
   const genders = ['Male', 'Female'];
 
+  const data = [
+    // Sample data
+    { name: 'Jan', sales: 4000},
+    { name: 'Feb', sales: 3000 },
+    { name: 'Mar', sales: 2000 },
+    { name: 'Apr', sales: 2780 },
+    { name: 'May', sales: 1890 },
+    { name: 'Jun', sales: 2390 },
+  ];
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -212,6 +222,25 @@ const OrdersAnalytics = () => {
             </button>
           </div>
         </aside>
+
+        <main className="main-content">
+          <div className="main-content-container">
+            {/* Charts and analytics area */}
+            <div className="chart-wrapper">
+              <div className="chart-grid">
+                <div className="chart-card">
+                  {/* Chart components */}
+                </div>
+              </div>
+            </div>
+
+            {/* Statistical Data */}
+            <div className="statistical-data">
+              <h2>Statistical Data</h2>
+            </div>
+
+          </div>
+        </main>
 
       </div>
     </div>
