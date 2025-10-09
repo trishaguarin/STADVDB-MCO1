@@ -24,17 +24,10 @@ const OrdersAnalytics = () => {
     'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
   ];
 
-  const genders = ['Male', 'Female'];
+  // Tab states
+  const [activeTab, setActiveTab] = useState('orders');
 
-  const data = [
-    // Sample data
-    { name: 'Jan', sales: 4000},
-    { name: 'Feb', sales: 3000 },
-    { name: 'Mar', sales: 2000 },
-    { name: 'Apr', sales: 2780 },
-    { name: 'May', sales: 1890 },
-    { name: 'Jun', sales: 2390 },
-  ];
+  const genders = ['Male', 'Female'];
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -68,8 +61,6 @@ const OrdersAnalytics = () => {
     if (items.length <= 2) return items.join(', ');
     return `${items.length} selected`;
   };
-
-
 
   return (
     <div className="dashboard-container">
@@ -212,7 +203,6 @@ const OrdersAnalytics = () => {
             <button 
               className="filter-button"
               onClick={() => {
-                // Filter logic here
                 console.log('Selected Genders:', selectedGenders);
                 console.log('Selected Cities:', selectedCities);
                 console.log('Date Range:', { startDate, endDate });
@@ -223,24 +213,57 @@ const OrdersAnalytics = () => {
           </div>
         </aside>
 
-        <main className="main-content">
-          <div className="main-content-container">
-            {/* Charts and analytics area */}
-            <div className="chart-wrapper">
-              <div className="chart-grid">
-                <div className="chart-card">
-                  {/* Chart components */}
+        <div className="content-wrapper">
+          {/* Tabs/buttons at the top */}
+          <div className="tabs-container">
+            <button
+              className={`tab-button orders-tab ${activeTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setActiveTab('orders')}
+            >
+              Orders Analytics
+            </button>
+
+            <button
+              className={`tab-button users-tab ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => setActiveTab('users')}
+            >
+              User Statistics
+            </button>
+
+            <button
+              className={`tab-button products-tab ${activeTab === 'products' ? 'active' : ''}`}
+              onClick={() => setActiveTab('products')}
+            >
+              Product Trends
+            </button>
+
+            <button
+              className={`tab-button riders-tab ${activeTab === 'riders' ? 'active' : ''}`}
+              onClick={() => setActiveTab('riders')}
+            >
+              Rider Performance
+            </button>
+          </div>
+
+          {/* Statistical Data area */}
+          <div className="statistical-data">
+            <h2>Statistical Data</h2>
+            {/* Add average, min, and max */}
+          </div>
+
+          {/* Main content */}
+          <main className="main-content">
+            <div className="main-content-container">
+              <div className="chart-wrapper">
+                <div className="chart-grid">
+                  <div className="chart-card">
+                    {/* Chart components here */}
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Statistical Data */}
-            <div className="statistical-data">
-              <h2>Statistical Data</h2>
-            </div>
-
-          </div>
-        </main>
+          </main>
+        </div>
 
       </div>
     </div>
