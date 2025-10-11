@@ -370,29 +370,50 @@ html, body, #root {
 }
 
 .dropdown-option {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
+  gap: 0.5rem;
   transition: background-color 0.2s;
 }
 
 .dropdown-option:hover {
-  background-color: #f8fafc;
+  background-color: #f5f5f5;
 }
 
 .dropdown-option.selected {
-  background-color: #f1f5f9;
+  background-color: #e6f0ff;
+  font-weight: 500;
 }
 
-.checkbox {
+.city-with-country {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+}
+
+.country-label {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: normal;
+  margin-top: 0.1rem;
+}
+
+.dropdown-option:hover .country-label,
+.dropdown-option.selected .country-label {
+  color: #555;
+}
+
+.dropdown-option .checkbox {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 16px;
   height: 16px;
   margin-right: 0.75rem;
-  border: 1px solid #cbd5e1;
+{{ ... }}
   border-radius: 4px;
   background-color: white;
   transition: all 0.2s;

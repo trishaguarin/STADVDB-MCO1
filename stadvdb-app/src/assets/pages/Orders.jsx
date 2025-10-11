@@ -14,17 +14,45 @@ const OrdersAnalytics = () => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [showAgeGroupDropdown, setShowAgeGroupDropdown] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenders, setSelectedGenders] = useState([]);
-  const [selectedTime, setSelectedTime] = useState([]);
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
+  const [selectedTime, setSelectedTime] = useState('Month');
+  const [selectedCountries, setSelectedCountries] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+  
+  // Refs for dropdowns
   const cityDropdownRef = useRef(null);
   const genderDropdownRef = useRef(null);
+  const timeDropdownRef = useRef(null);
+  const ageGroupDropdownRef = useRef(null);
+  const countryDropdownRef = useRef(null);
+  
+  // Constants
+  const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
+  const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
-  // Placeholder Data
-  const cities = [
-    'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-    'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
-  ];
+  // Country and City Data
+  const [countries, setCountries] = useState([
+    { id: 'us', name: 'United States' },
+    { id: 'ca', name: 'Canada' },
+    { id: 'uk', name: 'United Kingdom' },
+    { id: 'au', name: 'Australia' },
+    { id: 'jp', name: 'Japan' }
+  ]);
+
+  const citiesByCountry = {
+    us: [
+      'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
+      'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
+    ],
+    ca: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa'],
+    uk: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool'],
+    au: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
+    jp: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo']
+  };
 
   // Tab states and data
   const [activeTab, setActiveTab] = useState('orders');
@@ -179,6 +207,9 @@ const OrdersAnalytics = () => {
       if (genderDropdownRef.current && !genderDropdownRef.current.contains(event.target)) {
         setShowGenderDropdown(false);
       }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+        setShowCountryDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -186,6 +217,25 @@ const OrdersAnalytics = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
+  // Update available cities when selected countries change
+  useEffect(() => {
+    if (selectedCountries.length > 0) {
+      const cities = [];
+      selectedCountries.forEach(countryId => {
+        const countryCities = citiesByCountry[countryId] || [];
+        cities.push(...countryCities.map(city => ({
+          name: city,
+          countryId,
+          countryName: countries.find(c => c.id === countryId)?.name || ''
+        })));
+      });
+      setAvailableCities(cities);
+    } else {
+      setAvailableCities([]);
+      setSelectedCities([]);
+    }
+  }, [selectedCountries]);
 
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
     setSelectedItems(prev => 
@@ -195,10 +245,16 @@ const OrdersAnalytics = () => {
     );
   };
 
-  const getSelectedText = (items) => {
+  const getSelectedText = (items, isCountry = false) => {
     if (items.length === 0) return 'Select...';
-    if (items.length <= 2) return items.join(', ');
-    return `${items.length} selected`;
+    if (isCountry) {
+      if (items.length <= 2) {
+        return items.map(id => countries.find(c => c.id === id)?.name || id).join(', ');
+      }
+      return `${items.length} countries selected`;
+    }
+    if (items.length <= 2) return items.map(city => city.name || city).join(', ');
+    return `${items.length} cities selected`;
   };
 
   return (
@@ -273,64 +329,153 @@ const OrdersAnalytics = () => {
             </div>
 
             {/* Time Granularity Dropdown */}
-            <div className="filter-item" ref={genderDropdownRef}>
-              <label className="filter-label">Gender</label>
+            <div className="filter-item" ref={timeDropdownRef}>
+              <label className="filter-label">Time Granularity</label>
               <div className="dropdown-container">
                 <div 
                   className="dropdown-header"
-                  onClick={() => setShowGenderDropdown(!showGenderDropdown)}
+                  onClick={() => setShowTimeDropdown(!showTimeDropdown)}
                 >
-                  <span className={selectedGenders.length === 0 ? 'placeholder' : ''}>
-                    {getSelectedText(selectedGenders)}
-                  </span>
-                  <ChevronDown className={`dropdown-arrow ${showGenderDropdown ? 'rotate' : ''}`} />
+                  <span>{selectedTime || 'Select...'}</span>
+                  <ChevronDown className={`dropdown-arrow ${showTimeDropdown ? 'rotate' : ''}`} />
                 </div>
                 
-                {showGenderDropdown && (
+                {showTimeDropdown && (
                   <div className="dropdown-options">
-                    {genders.map(gender => (
+                    {timeOptions.map(option => (
                       <div 
-                        key={gender} 
-                        className={`dropdown-option ${selectedGenders.includes(gender) ? 'selected' : ''}`}
-                        onClick={() => toggleSelection(gender, selectedGenders, setSelectedGenders)}
+                        key={option}
+                        className={`dropdown-option ${selectedTime === option ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedTime(option);
+                          setShowTimeDropdown(false);
+                          setFilters(prev => ({
+                            ...prev,
+                            timeGranularity: option.toLowerCase()
+                          }));
+                        }}
                       >
                         <span className="checkbox">
-                          {selectedGenders.includes(gender) && <Check size={14} />}
+                          {selectedTime === option && <Check size={14} />}
                         </span>
-                        {gender}
+                        {option}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Age Group Dropdown*/}
+            {activeTab === 'users' && (
+              <div className="filter-item" ref={ageGroupDropdownRef}>
+                <label className="filter-label">Age Group</label>
+                <div className="dropdown-container">
+                  <div 
+                    className="dropdown-header"
+                    onClick={() => setShowAgeGroupDropdown(!showAgeGroupDropdown)}
+                  >
+                    <span className={selectedAgeGroups.length === 0 ? 'placeholder' : ''}>
+                      {getSelectedText(selectedAgeGroups)}
+                    </span>
+                    <ChevronDown className={`dropdown-arrow ${showAgeGroupDropdown ? 'rotate' : ''}`} />
+                  </div>
+                  
+                  {showAgeGroupDropdown && (
+                    <div className="dropdown-options">
+                      {ageGroups.map(group => (
+                        <div 
+                          key={group}
+                          className={`dropdown-option ${selectedAgeGroups.includes(group) ? 'selected' : ''}`}
+                          onClick={() => {
+                            toggleSelection(group, selectedAgeGroups, setSelectedAgeGroups);
+                            setFilters(prev => ({
+                              ...prev,
+                              ageGroups: selectedAgeGroups.includes(group)
+                                ? selectedAgeGroups.filter(g => g !== group)
+                                : [...selectedAgeGroups, group]
+                            }));
+                          }}
+                        >
+                          <span className="checkbox">
+                            {selectedAgeGroups.includes(group) && <Check size={14} />}
+                          </span>
+                          {group}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Gender Dropdown */}
-            <div className="filter-item" ref={genderDropdownRef}>
-              <label className="filter-label">Gender</label>
+            {(activeTab === 'orders' || activeTab === 'users') && (
+              <div className="filter-item" ref={genderDropdownRef}>
+                <label className="filter-label">Gender</label>
+                <div className="dropdown-container">
+                  <div 
+                    className="dropdown-header"
+                    onClick={() => setShowGenderDropdown(!showGenderDropdown)}
+                  >
+                    <span className={selectedGenders.length === 0 ? 'placeholder' : ''}>
+                      {getSelectedText(selectedGenders)}
+                    </span>
+                    <ChevronDown className={`dropdown-arrow ${showGenderDropdown ? 'rotate' : ''}`} />
+                  </div>
+                  
+                  {showGenderDropdown && (
+                    <div className="dropdown-options">
+                      {genders.map(gender => (
+                        <div 
+                          key={gender} 
+                          className={`dropdown-option ${selectedGenders.includes(gender) ? 'selected' : ''}`}
+                          onClick={() => toggleSelection(gender, selectedGenders, setSelectedGenders)}
+                        >
+                          <span className="checkbox">
+                            {selectedGenders.includes(gender) && <Check size={14} />}
+                          </span>
+                          {gender}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Country Dropdown */}
+            <div className="filter-item" ref={countryDropdownRef}>
+              <label className="filter-label">Countries</label>
               <div className="dropdown-container">
                 <div 
                   className="dropdown-header"
-                  onClick={() => setShowGenderDropdown(!showGenderDropdown)}
+                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
                 >
-                  <span className={selectedGenders.length === 0 ? 'placeholder' : ''}>
-                    {getSelectedText(selectedGenders)}
+                  <span className={selectedCountries.length === 0 ? 'placeholder' : ''}>
+                    {getSelectedText(selectedCountries, true)}
                   </span>
-                  <ChevronDown className={`dropdown-arrow ${showGenderDropdown ? 'rotate' : ''}`} />
+                  <ChevronDown className={`dropdown-arrow ${showCountryDropdown ? 'rotate' : ''}`} />
                 </div>
                 
-                {showGenderDropdown && (
+                {showCountryDropdown && (
                   <div className="dropdown-options">
-                    {genders.map(gender => (
+                    {countries.map(country => (
                       <div 
-                        key={gender} 
-                        className={`dropdown-option ${selectedGenders.includes(gender) ? 'selected' : ''}`}
-                        onClick={() => toggleSelection(gender, selectedGenders, setSelectedGenders)}
+                        key={country.id}
+                        className={`dropdown-option ${selectedCountries.includes(country.id) ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedCountries(prev => 
+                            prev.includes(country.id)
+                              ? prev.filter(id => id !== country.id)
+                              : [...prev, country.id]
+                          );
+                        }}
                       >
                         <span className="checkbox">
-                          {selectedGenders.includes(gender) && <Check size={14} />}
+                          {selectedCountries.includes(country.id) && <Check size={14} />}
                         </span>
-                        {gender}
+                        {country.name}
                       </div>
                     ))}
                   </div>
@@ -338,38 +483,57 @@ const OrdersAnalytics = () => {
               </div>
             </div>
 
-            {/* Cities Multi-Select Dropdown */}
-            <div className="filter-item" ref={cityDropdownRef}>
-              <label className="filter-label">City</label>
-              <div className="dropdown-container">
-                <div 
-                  className="dropdown-header"
-                  onClick={() => setShowCityDropdown(!showCityDropdown)}
-                >
-                  <span className={selectedCities.length === 0 ? 'placeholder' : ''}>
-                    {getSelectedText(selectedCities)}
-                  </span>
-                  <ChevronDown className={`dropdown-arrow ${showCityDropdown ? 'rotate' : ''}`} />
-                </div>
-                
-                {showCityDropdown && (
-                  <div className="dropdown-options">
-                    {cities.map(city => (
-                      <div 
-                        key={city} 
-                        className={`dropdown-option ${selectedCities.includes(city) ? 'selected' : ''}`}
-                        onClick={() => toggleSelection(city, selectedCities, setSelectedCities)}
-                      >
-                        <span className="checkbox">
-                          {selectedCities.includes(city) && <Check size={14} />}
-                        </span>
-                        {city}
-                      </div>
-                    ))}
+            {/* Cities Dropdown */}
+            {selectedCountries.length > 0 && (
+              <div className="filter-item" ref={cityDropdownRef}>
+                <label className="filter-label">City</label>
+                <div className="dropdown-container">
+                  <div 
+                    className="dropdown-header"
+                    onClick={() => setShowCityDropdown(!showCityDropdown)}
+                    style={availableCities.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                  >
+                    <span className={selectedCities.length === 0 ? 'placeholder' : ''}>
+                      {availableCities.length > 0 ? getSelectedText(selectedCities) : 'No cities available'}
+                    </span>
+                    {availableCities.length > 0 && (
+                      <ChevronDown className={`dropdown-arrow ${showCityDropdown ? 'rotate' : ''}`} />
+                    )}
                   </div>
-                )}
+                  
+                  {showCityDropdown && availableCities.length > 0 && (
+                    <div className="dropdown-options">
+                      {availableCities.map((city, index) => {
+                        const countryName = countries.find(c => c.id === city.countryId)?.name || '';
+                        const isSelected = selectedCities.some(c => c.name === city.name && c.countryId === city.countryId);
+                        
+                        return (
+                          <div 
+                            key={`${city.countryId}-${city.name}-${index}`}
+                            className={`dropdown-option ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedCities(prev => 
+                                isSelected
+                                  ? prev.filter(c => !(c.name === city.name && c.countryId === city.countryId))
+                                  : [...prev, { name: city.name, countryId: city.countryId }]
+                              );
+                            }}
+                          >
+                            <span className="checkbox">
+                              {isSelected && <Check size={14} />}
+                            </span>
+                            <span className="city-with-country">
+                              {city.name}
+                              <span className="country-label">{countryName}</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Filter Button */}
             <button 
