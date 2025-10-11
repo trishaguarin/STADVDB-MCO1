@@ -71,10 +71,10 @@ def total_orders_over_time():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("createdAt >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("createdAt <= :end_date")
         params['end_date'] = end_date
     
     query += build_where_clause(conditions)
@@ -130,19 +130,33 @@ def orders_by_location():
 @app.route('/api/orders/by-product-category', methods=['GET'])
 def orders_by_product_category():
     """Total Orders Per Product Category - Which product categories generate the most orders?"""
-    # date_category = request.args.get('date_category')
-    location_category = request.args.get('location')  # city, country
+    date_category = request.args.get('category', 'day') # day, week, month, quarter, year
+    location_category = request.args.get('type', 'city')  # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    query = """
+    date_formats = {
+        'day': "DATE(createdAt)",
+        'week': "DATE_FORMAT(createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(createdAt), '-Q', QUARTER(createdAt))",
+        'year': "YEAR(createdAt)"
+    }
+
+    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
+    location_field = 'city' if location_category == 'city' else 'country'
+
+    query = f"""
         SELECT 
+            {date_format} as period
+            u.{location_field} as location
             p.category,
             COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_quantity,
             COUNT(DISTINCT o.userID) as unique_customers
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
+        JOIN DimUsers u on o.userID = u.userID
     """
     
     conditions = []
@@ -154,9 +168,10 @@ def orders_by_product_category():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
-    if location_category:
-        conditions.append("o.city = :location") # to check still
-        params['location'] = location_category
+    
+    """if location_category:
+        conditions.append("o.city = :location") # CHECK KO PA TOH SOON KUNG o.city BA TALGA
+        params['location'] = location_category """
     
     query += build_where_clause(conditions)
     query += " GROUP BY p.category ORDER BY total_orders DESC"
@@ -168,7 +183,50 @@ def orders_by_product_category():
         return jsonify({"success": False, "error": str(e)}), 500
 
 # ========== SALES REPORTS ==========
-
+@app.route('/api/orders/total-sales-over-time', methods=['GET'])
+def total_orders_over_time():
+    """Total Orders Over Time - How many orders do we receive each [DATE CATEGORY]?"""
+    date_category = request.args.get('category', 'day')  # day, week, month, quarter, year
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    date_formats = {
+        'day': "DATE(createdAt)",
+        'week': "DATE_FORMAT(createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(createdAt), '-Q', QUARTER(createdAt))",
+        'year': "YEAR(createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            COUNT(DISTINCT orderID) as total_orders,
+            COUNT(DISTINCT userID) as unique_customers,
+            SUM(quantity) as total_items
+        FROM FactOrders
+    """
+    
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    
+    query += build_where_clause(conditions)
+    query += f" GROUP BY {date_format} ORDER BY period"
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ========== CUSTOMER REPORTS ==========
 
