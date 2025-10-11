@@ -4,7 +4,6 @@ from flask_cors import CORS
 from datetime import datetime
 import traceback
 
-
 app = Flask(__name__)
 CORS(app)
 
