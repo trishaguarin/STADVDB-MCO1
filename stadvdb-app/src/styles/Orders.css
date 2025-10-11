@@ -49,39 +49,6 @@ html, body, #root {
   height: calc(100vh - 80px);
 }
 
-/* Statistical Data */
-.statistical-data {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card {
-  background: #f8fafc;
-  padding: 1.25rem;
-  border-radius: 8px;
-  border-left: 4px solid #3b82f6;
-}
-
-.stat-card h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.stat-card p {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
 /* Chart Wrapper */
 .chart-wrapper {
   flex: 1 1 auto;
@@ -384,7 +351,7 @@ html, body, #root {
 
 .dropdown-option.selected {
   background-color: #e6f0ff;
-  font-weight: 500;
+  padding-right: 0; /* removed reserved space for statistical panel */
 }
 
 .city-with-country {
@@ -413,7 +380,6 @@ html, body, #root {
   width: 16px;
   height: 16px;
   margin-right: 0.75rem;
-{{ ... }}
   border-radius: 4px;
   background-color: white;
   transition: all 0.2s;
@@ -431,7 +397,6 @@ html, body, #root {
   flex-direction: column;
   position: relative;
   min-height: 0;
-  padding-right: 300px;
   gap: 1.5rem;
   padding-top: 0.5rem;
 }
@@ -524,32 +489,6 @@ html, body, #root {
 
 .main-content.riders-active {
   background-color: #D8EDCF;
-}
-
-.statistical-data {
-  background: #F4E6CC;
-  position: absolute;
-  top: 5px;
-  right: 0px;
-  bottom: -25px;
-  width: 280px;
-  border-radius: 8px;
-  padding: 1rem;
-  z-index: 3;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.statistical-data h2 {
-  text-align: center;
-  padding: 0.5rem 0 1rem 0;
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  color: #333;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 @media (max-width: 768px) {

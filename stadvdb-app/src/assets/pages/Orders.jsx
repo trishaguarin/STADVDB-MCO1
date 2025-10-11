@@ -609,17 +609,6 @@ const OrdersAnalytics = () => {
 
           <main className={`main-content ${activeTab}-active`}>
             <div className="main-content-container">
-              {/* Statistical Data */}
-              <div className="statistical-data">
-                <h2 className="section-title">Statistical Data</h2>
-                {currentTab.stats.map((stat, index) => (
-                  <div key={index} className="stat-card">
-                    <h3>{stat.title}</h3>
-                    <p>{stat.value}</p>
-                  </div>
-                ))}
-              </div>
-
               <div className="chart-wrapper">
                 <div className="chart-grid">
                   {currentTab.charts.map((chart, index) => (
