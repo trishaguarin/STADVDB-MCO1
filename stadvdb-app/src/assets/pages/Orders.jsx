@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { Calendar, ChevronDown, X, Check } from 'lucide-react';
 import '../../styles/Orders.css';
 
@@ -105,25 +105,50 @@ const OrdersAnalytics = () => {
       ],
       charts: [
         {
-          type: 'line',
-          title: 'User Growth',
-          description: 'New user signups over time',
-          dataKey: 'users',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            users: Math.floor(Math.random() * 30) + 5
-          }))
+          type: 'bar',
+          title: 'Orders by Demographics',
+          description: 'Shows how many orders came from each gender and age group across different locations',
+          dataKey: 'orders',
+          data: [
+            { location: 'Metro Manila', Male_18_24: 320, Female_18_24: 280, Male_25_34: 450, Female_25_34: 500 },
+            { location: 'Luzon', Male_18_24: 210, Female_18_24: 190, Male_25_34: 350, Female_25_34: 420 },
+            { location: 'Visayas', Male_18_24: 150, Female_18_24: 160, Male_25_34: 270, Female_25_34: 300 },
+            { location: 'Mindanao', Male_18_24: 130, Female_18_24: 140, Male_25_34: 200, Female_25_34: 240 }
+          ]
         },
         {
-          type: 'bar',
-          title: 'User Activity',
-          description: 'User engagement metrics',
-          dataKey: 'count',
+          type: 'pie',
+          title: 'Customer Segments (Age Group)',
+          description: 'Shows which age group contributes the most to total revenue',
+          dataKey: 'value',
           data: [
-            { activity: 'Page Views', count: 12450 },
-            { activity: 'Sessions', count: 8450 },
-            { activity: 'Purchases', count: 1248 },
-            { activity: 'Returns', count: 75 }
+            { name: '18–24', value: 15000 },
+            { name: '25–34', value: 42000 },
+            { name: '35–44', value: 38000 },
+            { name: '45–54', value: 21000 },
+            { name: '55+', value: 9000 }
+          ]
+        },
+        {
+          type: 'pie',
+          title: 'Customer Segments (Gender)',
+          description: 'Shows which gender segment contributes the most to total revenue',
+          dataKey: 'value',
+          data: [
+            { name: 'Male', value: 52000 },
+            { name: 'Female', value: 48000 }
+          ]
+        },
+        {
+          type: 'pie',
+          title: 'Customer Segments (Location)',
+          description: 'Shows which location segment contributes the most to total revenue',
+          dataKey: 'value',
+          data: [
+            { name: 'Metro Manila', value: 65000 },
+            { name: 'Luzon (Outside Metro Manila)', value: 28000 },
+            { name: 'Visayas', value: 18000 },
+            { name: 'Mindanao', value: 14000 }
           ]
         }
       ]
@@ -171,8 +196,8 @@ const OrdersAnalytics = () => {
       charts: [
         {
           type: 'line',
-          title: 'Delivery Performance',
-          description: 'Average delivery time by day',
+          title: 'Rider Delivery Time Performance',
+          description: 'Average delivery time per rider',
           dataKey: 'time',
           data: Array.from({ length: 7 }, (_, i) => ({
             date: `2025-01-${String(i + 1).padStart(2, '0')}`,
@@ -181,8 +206,8 @@ const OrdersAnalytics = () => {
         },
         {
           type: 'bar',
-          title: 'Rider Ratings',
-          description: 'Average rider ratings',
+          title: 'Orders Completed by Riders',
+          description: 'Orders delivered per rider',
           dataKey: 'rating',
           data: [
             { name: 'Rider 1', rating: 4.8 },
@@ -623,14 +648,42 @@ const OrdersAnalytics = () => {
                                 dot={false} 
                               />
                             </LineChart>
+                          ) : chart.type === 'pie' ? (
+                            <PieChart>
+                              <Tooltip />
+                              <Legend />
+                              <Pie
+                                data={chart.data}
+                                dataKey={chart.dataKey}
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={100}
+                                label
+                              >
+                                {chart.data.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'][index % 4]} />
+                                ))}
+                              </Pie>
+                            </PieChart>
                           ) : (
                             <BarChart
+                              layout={chart.dataKey === 'rating' ? 'vertical' : 'horizontal'}
                               data={chart.data}
-                              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
                             >
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey={chart.dataKey === 'rating' ? 'name' : Object.keys(chart.data[0])[0]} />
-                              <YAxis />
+                              <CartesianGrid strokeDasharray="3 3" />
+                              {chart.dataKey === 'rating' ? (
+                                <>
+                                  <XAxis type="number" />
+                                  <YAxis dataKey="name" type="category" />
+                                </>
+                              ) : (
+                                <>
+                                  <XAxis dataKey={Object.keys(chart.data[0])[0]} />
+                                  <YAxis />
+                                </>
+                              )}
                               <Tooltip />
                               <Legend />
                               <Bar 

@@ -84,19 +84,19 @@ html, body, #root {
 
 /* Chart Wrapper */
 .chart-wrapper {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .chart-grid {
   display: grid;
   gap: 1.5rem;
   grid-template-columns: 1fr;
-  height: 100%;
+  width: 100%;
   min-height: 0;
 }
 
@@ -426,12 +426,14 @@ html, body, #root {
 }
 
 .main-content-container {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   position: relative;
-  height: 100%;
+  min-height: 0;
   padding-right: 300px;
+  gap: 1.5rem;
+  padding-top: 0.5rem;
 }
 
 .tab-button {
@@ -503,7 +505,7 @@ html, body, #root {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-top: none;
   margin: -1px 0 0 0;
-  overflow: hidden;
+  overflow: auto;
   width: 1510px;
   transition: background-color 0.3s ease;
 }
