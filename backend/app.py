@@ -200,5 +200,33 @@ def get_countries():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     
+@app.route('/api/filters/cities', methods=['GET'])
+def get_cities():
+    """Get list of unique cities, optionally filtered by country."""
+    country = request.args.get('country')
+
+    query = """
+        SELECT DISTINCT city 
+        FROM DimUsers
+        WHERE city IS NOT NULL
+    """
+    params = {}
+
+    if country:
+        query += " AND country = :country"
+        params['country'] = country
+
+    query += " ORDER BY city"
+
+    try:
+        results = execute_query(query, params)
+        cities = [
+            {"id": row["city"].lower().replace(" ", "_"), "name": row["city"]}
+            for row in results if row["city"]
+        ]
+        return jsonify({"success": True, "data": cities})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')

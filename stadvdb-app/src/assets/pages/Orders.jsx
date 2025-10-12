@@ -283,6 +283,39 @@ const OrdersAnalytics = () => {
     fetchCountries();
   }, []);
 
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        let url = `${API_BASE_URL}/api/filters/cities`;
+
+        // If you want to fetch based on just the first selected country
+        if (selectedCountries.length === 1) {
+          const selectedCountryName = countries.find(
+            c => c.id === selectedCountries[0]
+          )?.name;
+          if (selectedCountryName) {
+            url += `?country=${encodeURIComponent(selectedCountryName)}`;
+          }
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.success) {
+          setAvailableCities(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+
+  // Fetch only when countries are selected
+  if (selectedCountries.length > 0) {
+    fetchCities();
+  } else {
+    setAvailableCities([]);
+    setSelectedCities([]);
+  }
+}, [selectedCountries, countries]);
 
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
     setSelectedItems(prev => 
@@ -529,6 +562,63 @@ const OrdersAnalytics = () => {
                 )}
               </div>
             </div>
+
+            {/* City Dropdown */}
+            <div className="filter-item" ref={cityDropdownRef}>
+            <label className="filter-label">Cities</label>
+            <div
+              className={`dropdown-container ${
+                selectedCountries.length === 0 ? 'disabled' : ''
+              }`}
+            >
+              <div
+                className="dropdown-header"
+                onClick={() => {
+                  if (selectedCountries.length === 0) return; // prevent opening
+                  setShowCityDropdown(!showCityDropdown);
+                }}
+              >
+                <span
+                  className={
+                    selectedCities.length === 0
+                      ? 'placeholder'
+                      : ''
+                  }
+                >
+                  {selectedCountries.length === 0
+                    ? 'Select a country first...'
+                    : getSelectedText(selectedCities)}
+                </span>
+                <ChevronDown
+                  className={`dropdown-arrow ${
+                    showCityDropdown ? 'rotate' : ''
+                  }`}
+                />
+              </div>
+
+              {showCityDropdown && selectedCountries.length > 0 && (
+                <div className="dropdown-options">
+                  {availableCities.map(city => (
+                    <div
+                      key={city.id}
+                      className={`dropdown-option ${
+                        selectedCities.includes(city.id) ? 'selected' : ''
+                      }`}
+                      onClick={() =>
+                        toggleSelection(city.id, selectedCities, setSelectedCities)
+                      }
+                    >
+                      <span className="checkbox">
+                        {selectedCities.includes(city.id) && <Check size={14} />}
+                      </span>
+                      {city.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
 
             
             {/* Filter Button */}
