@@ -181,6 +181,19 @@ html, body, #root {
   box-shadow: 0 0 0 3px rgba(38, 96, 164, 0.3);
 }
 
+.filter-button:disabled {
+  background-color: #e2e8f0;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.filter-button:disabled:hover {
+  background-color: #e2e8f0;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .sidebar-title {
   margin-top: 0;
   margin-bottom: 1.5rem;
@@ -290,6 +303,16 @@ html, body, #root {
 .dropdown-container {
   position: relative;
   width: 100%;
+}
+
+.dropdown-container.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.dropdown-container.disabled .dropdown-header {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
 }
 
 .dropdown-header {
@@ -460,6 +483,11 @@ html, body, #root {
   border-bottom: 1px solid #C5D5E0;
 }
 
+.sales-tab {
+  background-color: #E8F5E9;
+  border-bottom: 1px solid #D8E5D9;
+}
+
 .riders-tab {
   background-color: #D8EDCF;
   border-bottom: 1px solid #C8DDBF;
@@ -488,6 +516,10 @@ html, body, #root {
 
 .main-content.orders-active {
   background-color: #FCF3E2;
+}
+
+.main-content.sales-active {
+  background-color: #E8F5E9;
 }
 
 .main-content.users-active {

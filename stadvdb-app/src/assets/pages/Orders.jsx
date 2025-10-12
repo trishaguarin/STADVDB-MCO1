@@ -65,38 +65,87 @@ const OrdersAnalytics = () => {
     gender: [],
     dateRange: { start: '2025-01-01', end: '2025-01-31' }
   });
+  
+  // Data states for API responses
+  const [ordersOverTime, setOrdersOverTime] = useState([]);
+  const [ordersByLocation, setOrdersByLocation] = useState([]);
+  const [ordersByProductCategory, setOrdersByProductCategory] = useState([]);
+  const [salesOverTime, setSalesOverTime] = useState([]);
+  const [salesByLocation, setSalesByLocation] = useState([]);
+  const [salesByProductCategory, setSalesByProductCategory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Memoize stats calculations to prevent re-renders
+  const ordersStats = React.useMemo(() => [
+    { title: 'Total Orders', value: ordersOverTime.reduce((sum, d) => sum + (d.total_orders || 0), 0).toLocaleString() },
+    { title: 'Total Items', value: ordersOverTime.reduce((sum, d) => sum + (d.total_items || 0), 0).toLocaleString() },
+    { title: 'Unique Customers', value: ordersOverTime.reduce((sum, d) => sum + (d.unique_customers || 0), 0).toLocaleString() }
+  ], [ordersOverTime]);
+
+  const salesStats = React.useMemo(() => [
+    { title: 'Total Sales', value: '$' + salesOverTime.reduce((sum, d) => sum + (parseFloat(d.total_sales) || 0), 0).toLocaleString() },
+    { title: 'Total Orders', value: salesOverTime.reduce((sum, d) => sum + (d.total_orders || 0), 0).toLocaleString() },
+    { title: 'Total Items', value: salesOverTime.reduce((sum, d) => sum + (d.total_items || 0), 0).toLocaleString() }
+  ], [salesOverTime]);
 
   const tabData = {
     orders: {
       title: 'Orders Analytics',
-      stats: [
-        { title: 'Average Order Value', value: '$124.75' },
-        { title: 'Minimum Order Value', value: '$12.99' },
-        { title: 'Maximum Order Value', value: '$1,249.99' }
-      ],
+      stats: ordersStats,
       charts: [
         {
           type: 'line',
-          title: 'Orders Over Time',
-          description: 'Daily order volume for the selected period',
-          dataKey: 'orders',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            orders: Math.floor(Math.random() * 50) + 20
-          }))
+          title: 'Total Orders Over Time',
+          description: `How many orders do we receive each ${selectedTime}?`,
+          dataKey: 'total_orders',
+          data: ordersOverTime,
+          xAxisKey: 'period'
         },
         {
           type: 'bar',
-          title: 'Order Value Distribution',
-          description: 'Breakdown of orders by value range',
-          dataKey: 'count',
-          data: [
-            { range: '$0-50', count: 320 },
-            { range: '$51-100', count: 450 },
-            { range: '$101-200', count: 280 },
-            { range: '$201-500', count: 150 },
-            { range: '$500+', count: 48 },
-          ]
+          title: 'Total Orders Per Location',
+          description: 'How many orders do we receive in each location?',
+          dataKey: 'total_orders',
+          data: ordersByLocation,
+          xAxisKey: 'location'
+        },
+        {
+          type: 'bar',
+          title: 'Total Orders Per Product Category',
+          description: `Which product categories generate the most orders?`,
+          dataKey: 'total_orders',
+          data: ordersByProductCategory,
+          xAxisKey: 'category'
+        }
+      ]
+    },
+    sales: {
+      title: 'Sales Analytics',
+      stats: salesStats,
+      charts: [
+        {
+          type: 'line',
+          title: 'Total Sales Over Time',
+          description: `How many sales have we received each ${selectedTime}?`,
+          dataKey: 'total_sales',
+          data: salesOverTime,
+          xAxisKey: 'period'
+        },
+        {
+          type: 'bar',
+          title: 'Total Sales Per Location',
+          description: 'How many sales do we receive in each location?',
+          dataKey: 'total_sales',
+          data: salesByLocation,
+          xAxisKey: 'period'
+        },
+        {
+          type: 'bar',
+          title: 'Total Sales Per Product Category',
+          description: `Which product categories had the most sales?`,
+          dataKey: 'total_sales',
+          data: salesByProductCategory,
+          xAxisKey: 'category'
         }
       ]
     },
@@ -118,7 +167,8 @@ const OrdersAnalytics = () => {
             { location: 'Luzon', Male_18_24: 210, Female_18_24: 190, Male_25_34: 350, Female_25_34: 420 },
             { location: 'Visayas', Male_18_24: 150, Female_18_24: 160, Male_25_34: 270, Female_25_34: 300 },
             { location: 'Mindanao', Male_18_24: 130, Female_18_24: 140, Male_25_34: 200, Female_25_34: 240 }
-          ]
+          ],
+          xAxisKey: 'location'
         },
         {
           type: 'pie',
@@ -173,7 +223,8 @@ const OrdersAnalytics = () => {
           data: Array.from({ length: 7 }, (_, i) => ({
             date: `2025-01-${String(i + 1).padStart(2, '0')}`,
             sales: Math.floor(Math.random() * 100) + 50
-          }))
+          })),
+          xAxisKey: 'date'
         },
         {
           type: 'bar',
@@ -186,7 +237,8 @@ const OrdersAnalytics = () => {
             { name: 'Product C', units: 290 },
             { name: 'Product D', units: 210 },
             { name: 'Product E', units: 180 }
-          ]
+          ],
+          xAxisKey: 'name'
         }
       ]
     },
@@ -206,7 +258,8 @@ const OrdersAnalytics = () => {
           data: Array.from({ length: 7 }, (_, i) => ({
             date: `2025-01-${String(i + 1).padStart(2, '0')}`,
             time: Math.floor(Math.random() * 15) + 20
-          }))
+          })),
+          xAxisKey: 'date'
         },
         {
           type: 'bar',
@@ -219,9 +272,141 @@ const OrdersAnalytics = () => {
             { name: 'Rider 3', rating: 4.7 },
             { name: 'Rider 4', rating: 4.9 },
             { name: 'Rider 5', rating: 4.6 }
-          ]
+          ],
+          xAxisKey: 'name'
         }
       ]
+    }
+  };
+  
+  // API fetch functions
+  const fetchOrdersData = async () => {
+    setLoading(true);
+    try {
+      const timeCategory = selectedTime.toLowerCase();
+      
+      // Convert selected countries and cities to actual names
+      const selectedCountryNames = selectedCountries
+        .map(id => countries.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      const selectedCityNames = selectedCities
+        .map(id => availableCities.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      // Fetch Orders Over Time
+      const ordersTimeParams = new URLSearchParams({
+        category: timeCategory,
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) ordersTimeParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) ordersTimeParams.append('cities', selectedCityNames);
+      const ordersTimeRes = await fetch(`${API_BASE_URL}/api/orders/total-orders-over-time?${ordersTimeParams}`);
+      const ordersTimeData = await ordersTimeRes.json();
+      if (ordersTimeData.success) {
+        setOrdersOverTime(ordersTimeData.data);
+      }
+      
+      // Fetch Orders By Location
+      const ordersLocParams = new URLSearchParams({
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) ordersLocParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) ordersLocParams.append('cities', selectedCityNames);
+      const ordersLocRes = await fetch(`${API_BASE_URL}/api/orders/total-orders-by-location?${ordersLocParams}`);
+      const ordersLocData = await ordersLocRes.json();
+      if (ordersLocData.success) {
+        setOrdersByLocation(ordersLocData.data);
+      }
+      
+      // Fetch Orders By Product Category
+      const ordersCatParams = new URLSearchParams({
+        category: timeCategory,
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) ordersCatParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) ordersCatParams.append('cities', selectedCityNames);
+      const ordersCatRes = await fetch(`${API_BASE_URL}/api/orders/total-orders-by-product-category?${ordersCatParams}`);
+      const ordersCatData = await ordersCatRes.json();
+      if (ordersCatData.success) {
+        setOrdersByProductCategory(ordersCatData.data);
+      }
+    } catch (error) {
+      console.error('Error fetching orders data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchSalesData = async () => {
+    setLoading(true);
+    try {
+      const timeCategory = selectedTime.toLowerCase();
+      
+      // Convert selected countries and cities to actual names
+      const selectedCountryNames = selectedCountries
+        .map(id => countries.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      const selectedCityNames = selectedCities
+        .map(id => availableCities.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      // Fetch Sales Over Time
+      const salesTimeParams = new URLSearchParams({
+        category: timeCategory,
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) salesTimeParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) salesTimeParams.append('cities', selectedCityNames);
+      const salesTimeRes = await fetch(`${API_BASE_URL}/api/orders/total-sales-over-time?${salesTimeParams}`);
+      const salesTimeData = await salesTimeRes.json();
+      if (salesTimeData.success) {
+        setSalesOverTime(salesTimeData.data);
+      }
+      
+      // Fetch Sales By Location
+      const salesLocParams = new URLSearchParams({
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) salesLocParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) salesLocParams.append('cities', selectedCityNames);
+      const salesLocRes = await fetch(`${API_BASE_URL}/api/orders/total-sales-by-location?${salesLocParams}`);
+      const salesLocData = await salesLocRes.json();
+      if (salesLocData.success) {
+        setSalesByLocation(salesLocData.data);
+      }
+      
+      // Fetch Sales By Product Category
+      const salesCatParams = new URLSearchParams({
+        category: timeCategory,
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) salesCatParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) salesCatParams.append('cities', selectedCityNames);
+      const salesCatRes = await fetch(`${API_BASE_URL}/api/orders/total-sales-by-product-category?${salesCatParams}`);
+      const salesCatData = await salesCatRes.json();
+      if (salesCatData.success) {
+        setSalesByProductCategory(salesCatData.data);
+      }
+    } catch (error) {
+      console.error('Error fetching sales data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -288,7 +473,6 @@ const OrdersAnalytics = () => {
       try {
         let url = `${API_BASE_URL}/api/filters/cities`;
 
-        // If you want to fetch based on just the first selected country
         if (selectedCountries.length === 1) {
           const selectedCountryName = countries.find(
             c => c.id === selectedCountries[0]
@@ -317,6 +501,16 @@ const OrdersAnalytics = () => {
   }
 }, [selectedCountries, countries]);
 
+  // Fetch data on initial load only
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      fetchOrdersData();
+    } else if (activeTab === 'sales') {
+      fetchSalesData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
     setSelectedItems(prev => 
       prev.includes(item)
@@ -325,7 +519,7 @@ const OrdersAnalytics = () => {
     );
   };
 
-  const getSelectedText = (items, isCountry = false) => {
+  const getSelectedText = React.useCallback((items, isCountry = false) => {
     if (items.length === 0) return 'Select...';
 
     if (isCountry) {
@@ -343,7 +537,7 @@ const OrdersAnalytics = () => {
         .join(', ');
     }
     return `${items.length} cities selected`;
-  };
+  }, [countries, availableCities]);
 
 
   return (
@@ -637,9 +831,15 @@ const OrdersAnalytics = () => {
                 console.log('Selected Genders:', selectedGenders);
                 console.log('Selected Cities:', selectedCities);
                 console.log('Date Range:', { startDate, endDate });
+                if (activeTab === 'orders') {
+                  fetchOrdersData();
+                } else if (activeTab === 'sales') {
+                  fetchSalesData();
+                }
               }}
+              disabled={loading}
             >
-              Filter Results
+              {loading ? 'Loading...' : 'Filter Results'}
             </button>
           </div>
         </aside>
@@ -649,9 +849,22 @@ const OrdersAnalytics = () => {
           <div className="tabs-container">
             <button
               className={`tab-button orders-tab ${activeTab === 'orders' ? 'active' : ''}`}
-              onClick={() => setActiveTab('orders')}
+              onClick={() => {
+                setActiveTab('orders');
+                fetchOrdersData();
+              }}
             >
               Orders Analytics
+            </button>
+
+            <button
+              className={`tab-button sales-tab ${activeTab === 'sales' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('sales');
+                fetchSalesData();
+              }}
+            >
+              Sales Analytics
             </button>
 
             <button
@@ -695,7 +908,7 @@ const OrdersAnalytics = () => {
                               margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                             >
                               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="date" />
+                              <XAxis dataKey={chart.xAxisKey || "date"} />
                               <YAxis />
                               <Tooltip />
                               <Legend />
@@ -739,7 +952,7 @@ const OrdersAnalytics = () => {
                                 </>
                               ) : (
                                 <>
-                                  <XAxis dataKey={Object.keys(chart.data[0])[0]} />
+                                  <XAxis dataKey={chart.xAxisKey || (chart.data[0] ? Object.keys(chart.data[0])[0] : 'name')} />
                                   <YAxis />
                                 </>
                               )}
