@@ -74,6 +74,10 @@ const OrdersAnalytics = () => {
   const [salesByLocation, setSalesByLocation] = useState([]);
   const [salesByProductCategory, setSalesByProductCategory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [ordersByDemographics, setOrdersByDemographics] = useState([]);
+  const [customerSegmentsByAge, setCustomerSegmentsByAge] = useState([]);
+  const [customerSegmentsByGender, setCustomerSegmentsByGender] = useState([]);
+  const [customerSegmentsByLocation, setCustomerSegmentsByLocation] = useState([]);
 
   // Memoize stats calculations to prevent re-renders
   const ordersStats = React.useMemo(() => [
@@ -87,6 +91,23 @@ const OrdersAnalytics = () => {
     { title: 'Total Orders', value: salesOverTime.reduce((sum, d) => sum + (d.total_orders || 0), 0).toLocaleString() },
     { title: 'Total Items', value: salesOverTime.reduce((sum, d) => sum + (d.total_items || 0), 0).toLocaleString() }
   ], [salesOverTime]);
+
+  const transformDemographicsData = (data) => {
+    const locationMap = {};
+    
+    data.forEach(item => {
+      const location = item.location;
+      if (!locationMap[location]) {
+        locationMap[location] = { location };
+      }
+      
+      // Create keys like "Male_18-24", "Female_25-34", etc.
+      const key = `${item.gender}_${item.age_group}`;
+      locationMap[location][key] = item.total_orders;
+    });
+    
+    return Object.values(locationMap);
+  };
 
   const tabData = {
     orders: {
@@ -152,58 +173,58 @@ const OrdersAnalytics = () => {
     users: {
       title: 'User Statistics',
       stats: [
-        { title: 'Total Users', value: '2,450' },
-        { title: 'New Users (30d)', value: '345' },
-        { title: 'Active Users', value: '1,892' }
+        { 
+          title: 'Total Customers', 
+          value: ordersByDemographics.reduce((sum, d) => sum + (d.unique_customers || 0), 0).toLocaleString() || '0'
+        },
+        { 
+          title: 'Total Orders', 
+          value: ordersByDemographics.reduce((sum, d) => sum + (d.total_orders || 0), 0).toLocaleString() || '0'
+        },
+        { 
+          title: 'Total Revenue', 
+          value: '$' + (customerSegmentsByAge.reduce((sum, d) => sum + (parseFloat(d.total_revenue) || 0), 0).toLocaleString() || '0')
+        }
       ],
       charts: [
         {
           type: 'bar',
           title: 'Orders by Demographics',
-          description: 'Shows how many orders came from each gender and age group across different locations',
+          description: 'How many orders came from each gender and age group in different locations?',
           dataKey: 'orders',
-          data: [
-            { location: 'Metro Manila', Male_18_24: 320, Female_18_24: 280, Male_25_34: 450, Female_25_34: 500 },
-            { location: 'Luzon', Male_18_24: 210, Female_18_24: 190, Male_25_34: 350, Female_25_34: 420 },
-            { location: 'Visayas', Male_18_24: 150, Female_18_24: 160, Male_25_34: 270, Female_25_34: 300 },
-            { location: 'Mindanao', Male_18_24: 130, Female_18_24: 140, Male_25_34: 200, Female_25_34: 240 }
-          ],
-          xAxisKey: 'location'
+          data: transformDemographicsData(ordersByDemographics),
+          xAxisKey: 'location',
+          isStacked: true
         },
         {
           type: 'pie',
-          title: 'Customer Segments (Age Group)',
-          description: 'Shows which age group contributes the most to total revenue',
+          title: 'Customer Segments by Age Group',
+          description: 'Which age group contributes the most to total revenue?',
           dataKey: 'value',
-          data: [
-            { name: '18–24', value: 15000 },
-            { name: '25–34', value: 42000 },
-            { name: '35–44', value: 38000 },
-            { name: '45–54', value: 21000 },
-            { name: '55+', value: 9000 }
-          ]
+          data: customerSegmentsByAge.map(item => ({
+            name: item.segment,
+            value: parseFloat(item.total_revenue) || 0
+          }))
         },
         {
           type: 'pie',
-          title: 'Customer Segments (Gender)',
-          description: 'Shows which gender segment contributes the most to total revenue',
+          title: 'Customer Segments by Gender',
+          description: 'Which gender contributes the most to total revenue?',
           dataKey: 'value',
-          data: [
-            { name: 'Male', value: 52000 },
-            { name: 'Female', value: 48000 }
-          ]
+          data: customerSegmentsByGender.map(item => ({
+            name: item.segment,
+            value: parseFloat(item.total_revenue) || 0
+          }))
         },
         {
           type: 'pie',
-          title: 'Customer Segments (Location)',
-          description: 'Shows which location segment contributes the most to total revenue',
+          title: 'Customer Segments by Location (Top 10)',
+          description: 'Which locations contribute the most to total revenue?',
           dataKey: 'value',
-          data: [
-            { name: 'Metro Manila', value: 65000 },
-            { name: 'Luzon (Outside Metro Manila)', value: 28000 },
-            { name: 'Visayas', value: 18000 },
-            { name: 'Mindanao', value: 14000 }
-          ]
+          data: customerSegmentsByLocation.map(item => ({
+            name: item.segment,
+            value: parseFloat(item.total_revenue) || 0
+          }))
         }
       ]
     },
@@ -410,6 +431,100 @@ const OrdersAnalytics = () => {
     }
   };
 
+  const fetchCustomerData = async () => {
+    setLoading(true);
+    try {
+      const selectedCountryNames = selectedCountries
+        .map(id => countries.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      const selectedCityNames = selectedCities
+        .map(id => availableCities.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+
+      // Fetch Orders by Demographics
+      const demographicsParams = new URLSearchParams({
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedGenders.length > 0) {
+        demographicsParams.append('gender', selectedGenders.join(','));
+      }
+
+      if (selectedAgeGroups.length > 0) {
+        selectedAgeGroups.forEach(ageGroup => {
+          demographicsParams.append('age_group', ageGroup);
+        });
+      }
+
+      if (selectedCountryNames) demographicsParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) demographicsParams.append('cities', selectedCityNames);
+      
+      const demographicsRes = await fetch(
+        `${API_BASE_URL}/api/customers/orders-by-demographics?${demographicsParams}`
+      );
+      const demographicsData = await demographicsRes.json();
+      if (demographicsData.success) {
+        setOrdersByDemographics(demographicsData.data);
+      }
+
+      // Fetch Customer Segments by Age
+      const segmentsAgeParams = new URLSearchParams({
+        segment: 'age',
+        start_date: startDate,
+        end_date: endDate
+      });
+      const segmentsAgeRes = await fetch(
+        `${API_BASE_URL}/api/customers/segments-revenue?${segmentsAgeParams}`
+      );
+      const segmentsAgeData = await segmentsAgeRes.json();
+      if (segmentsAgeData.success) {
+        setCustomerSegmentsByAge(segmentsAgeData.data);
+      }
+
+      // Fetch Customer Segments by Gender
+      const segmentsGenderParams = new URLSearchParams({
+        segment: 'gender',
+        start_date: startDate,
+        end_date: endDate
+      });
+      const segmentsGenderRes = await fetch(
+        `${API_BASE_URL}/api/customers/segments-revenue?${segmentsGenderParams}`
+      );
+      const segmentsGenderData = await segmentsGenderRes.json();
+      if (segmentsGenderData.success) {
+        setCustomerSegmentsByGender(segmentsGenderData.data);
+      }
+
+      // Fetch Customer Segments by Location (top 10 only)
+      const segmentsLocationParams = new URLSearchParams({
+        segment: 'location',
+        type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      const segmentsLocationRes = await fetch(
+        `${API_BASE_URL}/api/customers/segments-revenue?${segmentsLocationParams}`
+      );
+      const segmentsLocationData = await segmentsLocationRes.json();
+      if (segmentsLocationData.success) {
+        // Limit to top 10 locations
+        const top10 = segmentsLocationData.data
+          .sort((a, b) => parseFloat(b.total_revenue) - parseFloat(a.total_revenue))
+          .slice(0, 10);
+        setCustomerSegmentsByLocation(top10);
+      }
+
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentTab = tabData[activeTab];
   const genders = ['Male', 'Female'];
 
@@ -423,6 +538,9 @@ const OrdersAnalytics = () => {
       }
       if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
         setShowCountryDropdown(false);
+      }
+      if (ageGroupDropdownRef.current && !ageGroupDropdownRef.current.contains(event.target)) {
+        setShowAgeGroupDropdown(false);
       }
     };
 
@@ -501,15 +619,17 @@ const OrdersAnalytics = () => {
   }
 }, [selectedCountries, countries]);
 
-  // Fetch data on initial load only
+  // Fetch data on tab change
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrdersData();
     } else if (activeTab === 'sales') {
       fetchSalesData();
+    } else if (activeTab === 'users') {
+      fetchCustomerData();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
     setSelectedItems(prev => 
@@ -659,7 +779,11 @@ const OrdersAnalytics = () => {
                     onClick={() => setShowAgeGroupDropdown(!showAgeGroupDropdown)}
                   >
                     <span className={selectedAgeGroups.length === 0 ? 'placeholder' : ''}>
-                      {getSelectedText(selectedAgeGroups)}
+                      {selectedAgeGroups.length === 0 
+                        ? 'Select...' 
+                        : selectedAgeGroups.length <= 2 
+                          ? selectedAgeGroups.join(', ')
+                          : `${selectedAgeGroups.length} age groups selected`}
                     </span>
                     <ChevronDown className={`dropdown-arrow ${showAgeGroupDropdown ? 'rotate' : ''}`} />
                   </div>
@@ -670,15 +794,7 @@ const OrdersAnalytics = () => {
                         <div 
                           key={group}
                           className={`dropdown-option ${selectedAgeGroups.includes(group) ? 'selected' : ''}`}
-                          onClick={() => {
-                            toggleSelection(group, selectedAgeGroups, setSelectedAgeGroups);
-                            setFilters(prev => ({
-                              ...prev,
-                              ageGroups: selectedAgeGroups.includes(group)
-                                ? selectedAgeGroups.filter(g => g !== group)
-                                : [...selectedAgeGroups, group]
-                            }));
-                          }}
+                          onClick={() => toggleSelection(group, selectedAgeGroups, setSelectedAgeGroups)}
                         >
                           <span className="checkbox">
                             {selectedAgeGroups.includes(group) && <Check size={14} />}
@@ -828,13 +944,12 @@ const OrdersAnalytics = () => {
             <button 
               className="filter-button"
               onClick={() => {
-                console.log('Selected Genders:', selectedGenders);
-                console.log('Selected Cities:', selectedCities);
-                console.log('Date Range:', { startDate, endDate });
                 if (activeTab === 'orders') {
                   fetchOrdersData();
                 } else if (activeTab === 'sales') {
                   fetchSalesData();
+                } else if (activeTab === 'users') {
+                  fetchCustomerData();
                 }
               }}
               disabled={loading}
@@ -958,11 +1073,26 @@ const OrdersAnalytics = () => {
                               )}
                               <Tooltip />
                               <Legend />
-                              <Bar 
-                                dataKey={chart.dataKey} 
-                                fill="#3b82f6" 
-                                radius={[4, 4, 0, 0]} 
-                              />
+                              
+                              {/* Handle stacked bar chart for demographics */}
+                              {chart.isStacked && chart.data.length > 0 ? (
+                                Object.keys(chart.data[0])
+                                  .filter(key => key !== 'location' && key !== chart.xAxisKey)
+                                  .map((key, index) => (
+                                    <Bar 
+                                      key={key}
+                                      dataKey={key} 
+                                      stackId="a"
+                                      fill={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff'][index % 6]} 
+                                    />
+                                  ))
+                              ) : (
+                                <Bar 
+                                  dataKey={chart.dataKey} 
+                                  fill="#3b82f6" 
+                                  radius={[4, 4, 0, 0]} 
+                                />
+                              )}
                             </BarChart>
                           )}
                         </ResponsiveContainer>
