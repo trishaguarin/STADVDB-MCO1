@@ -148,8 +148,8 @@ def orders_by_product_category():
 
     query = f"""
         SELECT 
-            {date_format} as period
-            u.{location_field} as location
+            {date_format} as period,
+            u.{location_field} as location,
             p.category,
             COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_quantity,
@@ -184,7 +184,7 @@ def orders_by_product_category():
 
 # ========== SALES REPORTS ==========
 @app.route('/api/orders/total-sales-over-time', methods=['GET'])
-def total_orders_over_time():
+def total_sales_over_time(): #renamed this
     """Total Orders Over Time - How many orders do we receive each [DATE CATEGORY]?"""
     date_category = request.args.get('category', 'day')  # day, week, month, quarter, year
     start_date = request.args.get('start_date')

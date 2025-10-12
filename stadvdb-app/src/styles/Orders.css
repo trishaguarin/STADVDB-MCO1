@@ -343,6 +343,11 @@ html, body, #root {
   align-items: center;
   gap: 0.5rem;
   transition: background-color 0.2s;
+  color: #000000 !important;
+}
+
+.dropdown-option span {
+  color: #000000;
 }
 
 .dropdown-option:hover {
@@ -351,7 +356,12 @@ html, body, #root {
 
 .dropdown-option.selected {
   background-color: #e6f0ff;
-  padding-right: 0; /* removed reserved space for statistical panel */
+  padding-right: 0; 
+  color: #000000;
+}
+
+.placeholder {
+  color: #94a3b8; 
 }
 
 .city-with-country {
@@ -383,12 +393,13 @@ html, body, #root {
   border-radius: 4px;
   background-color: white;
   transition: all 0.2s;
+  color: white;
 }
 
 .dropdown-option.selected .checkbox {
   background-color: #3b82f6;
   border-color: #3b82f6;
-  color: white;
+  color: black;
 }
 
 .main-content-container {

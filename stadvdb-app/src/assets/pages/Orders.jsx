@@ -4,6 +4,8 @@ import { Calendar, ChevronDown, X, Check } from 'lucide-react';
 import '../../styles/Orders.css';
 
 const OrdersAnalytics = () => {
+  const API_BASE_URL = 'http://localhost:5000';
+
   // Date states
   const [startDate, setStartDate] = useState('2025-01-01');
   const [endDate, setEndDate] = useState('2025-01-31');
@@ -34,25 +36,27 @@ const OrdersAnalytics = () => {
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
   const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
-  // Country and City Data
-  const [countries, setCountries] = useState([
-    { id: 'us', name: 'United States' },
-    { id: 'ca', name: 'Canada' },
-    { id: 'uk', name: 'United Kingdom' },
-    { id: 'au', name: 'Australia' },
-    { id: 'jp', name: 'Japan' }
-  ]);
+  // // Country and City Data
+  // const [countries, setCountries] = useState([
+  //   { id: 'us', name: 'United States' },
+  //   { id: 'ca', name: 'Canada' },
+  //   { id: 'uk', name: 'United Kingdom' },
+  //   { id: 'au', name: 'Australia' },
+  //   { id: 'jp', name: 'Japan' }
+  // ]);
 
-  const citiesByCountry = {
-    us: [
-      'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-      'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
-    ],
-    ca: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa'],
-    uk: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool'],
-    au: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
-    jp: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo']
-  };
+  // const citiesByCountry = {
+  //   us: [
+  //     'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
+  //     'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
+  //   ],
+  //   ca: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa'],
+  //   uk: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool'],
+  //   au: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
+  //   jp: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo']
+  // };
+
+  const [countries, setCountries] = useState([]);
 
   // Tab states and data
   const [activeTab, setActiveTab] = useState('orders');
@@ -244,23 +248,41 @@ const OrdersAnalytics = () => {
   }, []);
   
   // Update available cities when selected countries change
+  // useEffect(() => {
+  //   if (selectedCountries.length > 0) {
+  //     const cities = [];
+  //     selectedCountries.forEach(countryId => {
+  //       const countryCities = citiesByCountry[countryId] || [];
+  //       cities.push(...countryCities.map(city => ({
+  //         name: city,
+  //         countryId,
+  //         countryName: countries.find(c => c.id === countryId)?.name || ''
+  //       })));
+  //     });
+  //     setAvailableCities(cities);
+  //   } else {
+  //     setAvailableCities([]);
+  //     setSelectedCities([]);
+  //   }
+  // }, [selectedCountries]);
+
+  // fetch dropdown opttions
   useEffect(() => {
-    if (selectedCountries.length > 0) {
-      const cities = [];
-      selectedCountries.forEach(countryId => {
-        const countryCities = citiesByCountry[countryId] || [];
-        cities.push(...countryCities.map(city => ({
-          name: city,
-          countryId,
-          countryName: countries.find(c => c.id === countryId)?.name || ''
-        })));
-      });
-      setAvailableCities(cities);
-    } else {
-      setAvailableCities([]);
-      setSelectedCities([]);
-    }
-  }, [selectedCountries]);
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/filters/countries`);
+        const data = await response.json();
+        if (data.success) {
+          setCountries(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching countries:', error);
+      }
+    };
+    
+    fetchCountries();
+  }, []);
+
 
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
     setSelectedItems(prev => 
@@ -508,57 +530,6 @@ const OrdersAnalytics = () => {
               </div>
             </div>
 
-            {/* Cities Dropdown */}
-            {selectedCountries.length > 0 && (
-              <div className="filter-item" ref={cityDropdownRef}>
-                <label className="filter-label">City</label>
-                <div className="dropdown-container">
-                  <div 
-                    className="dropdown-header"
-                    onClick={() => setShowCityDropdown(!showCityDropdown)}
-                    style={availableCities.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                  >
-                    <span className={selectedCities.length === 0 ? 'placeholder' : ''}>
-                      {availableCities.length > 0 ? getSelectedText(selectedCities) : 'No cities available'}
-                    </span>
-                    {availableCities.length > 0 && (
-                      <ChevronDown className={`dropdown-arrow ${showCityDropdown ? 'rotate' : ''}`} />
-                    )}
-                  </div>
-                  
-                  {showCityDropdown && availableCities.length > 0 && (
-                    <div className="dropdown-options">
-                      {availableCities.map((city, index) => {
-                        const countryName = countries.find(c => c.id === city.countryId)?.name || '';
-                        const isSelected = selectedCities.some(c => c.name === city.name && c.countryId === city.countryId);
-                        
-                        return (
-                          <div 
-                            key={`${city.countryId}-${city.name}-${index}`}
-                            className={`dropdown-option ${isSelected ? 'selected' : ''}`}
-                            onClick={() => {
-                              setSelectedCities(prev => 
-                                isSelected
-                                  ? prev.filter(c => !(c.name === city.name && c.countryId === city.countryId))
-                                  : [...prev, { name: city.name, countryId: city.countryId }]
-                              );
-                            }}
-                          >
-                            <span className="checkbox">
-                              {isSelected && <Check size={14} />}
-                            </span>
-                            <span className="city-with-country">
-                              {city.name}
-                              <span className="country-label">{countryName}</span>
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
             
             {/* Filter Button */}
             <button 

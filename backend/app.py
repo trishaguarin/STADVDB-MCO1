@@ -39,7 +39,6 @@ def build_where_clause(conditions):
 def hello():
     return "OLAP Backend API etc etc"
 
-
 # ========== ORDERS REPORTS ==========
 @app.route('/api/orders/total-over-time', methods=['GET'])
 def total_orders_over_time():
@@ -181,6 +180,25 @@ def orders_by_product_category():
 
 # test
 
-
+# ========== FOR DROPDOWN STUFF IN SIDEBAR ==========
+@app.route('/api/filters/countries', methods=['GET'])
+def get_countries():
+    """Get list of unique countries from users"""
+    query = """
+        SELECT DISTINCT country 
+        FROM DimUsers
+        WHERE country IS NOT NULL
+        ORDER BY country
+    """
+    try:
+        results = execute_query(query)
+        countries = [
+            {"id": row["country"].lower().replace(" ", "_"), "name": row["country"]}
+            for row in results if row["country"]
+        ]
+        return jsonify({"success": True, "data": countries})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
