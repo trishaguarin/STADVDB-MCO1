@@ -1,350 +1,239 @@
+// src/components/OrdersAnalytics.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
-import { Calendar, ChevronDown, X, Check } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Calendar, ChevronDown, Check } from 'lucide-react';
 import '../../styles/Orders.css';
 
 const OrdersAnalytics = () => {
   const API_BASE_URL = 'http://localhost:5000';
 
-  // Date states
+  // State Management
+  const [activeTab, setActiveTab] = useState('orders');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
   const [startDate, setStartDate] = useState('2025-01-01');
   const [endDate, setEndDate] = useState('2025-01-31');
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
   
-  // Dropdown states
+  const [selectedTime, setSelectedTime] = useState('Month');
+  const [selectedGenders, setSelectedGenders] = useState([]);
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
+  const [selectedCountries, setSelectedCountries] = useState([]);
+  const [selectedCities, setSelectedCities] = useState([]);
+  
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
   const [showAgeGroupDropdown, setShowAgeGroupDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [selectedCities, setSelectedCities] = useState([]);
-  const [selectedGenders, setSelectedGenders] = useState([]);
-  const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
-  const [selectedTime, setSelectedTime] = useState('Month');
-  const [selectedCountries, setSelectedCountries] = useState([]);
+  
+  const [ordersData, setOrdersData] = useState({
+    ordersOverTime: [],
+    ordersByLocation: [],
+    ordersByCategory: [],
+    stats: { totalOrders: 0, uniqueCustomers: 0, totalItems: 0 }
+  });
+  
+  const [countries, setCountries] = useState([]);
   const [availableCities, setAvailableCities] = useState([]);
   
-  // Refs for dropdowns
+  const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
+  const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+  const genders = ['Male', 'Female'];
+  
   const cityDropdownRef = useRef(null);
   const genderDropdownRef = useRef(null);
   const timeDropdownRef = useRef(null);
   const ageGroupDropdownRef = useRef(null);
   const countryDropdownRef = useRef(null);
-  
-  // Constants
-  const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
-  const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 
-  // // Country and City Data
-  // const [countries, setCountries] = useState([
-  //   { id: 'us', name: 'United States' },
-  //   { id: 'ca', name: 'Canada' },
-  //   { id: 'uk', name: 'United Kingdom' },
-  //   { id: 'au', name: 'Australia' },
-  //   { id: 'jp', name: 'Japan' }
-  // ]);
-
-  // const citiesByCountry = {
-  //   us: [
-  //     'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-  //     'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
-  //   ],
-  //   ca: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa'],
-  //   uk: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool'],
-  //   au: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
-  //   jp: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo']
-  // };
-
-  const [countries, setCountries] = useState([]);
-
-  // Tab states and data
-  const [activeTab, setActiveTab] = useState('orders');
-  const [filters, setFilters] = useState({
-    city: [],
-    gender: [],
-    dateRange: { start: '2025-01-01', end: '2025-01-31' }
-  });
-
-  const tabData = {
-    orders: {
-      title: 'Orders Analytics',
-      stats: [
-        { title: 'Average Order Value', value: '$124.75' },
-        { title: 'Minimum Order Value', value: '$12.99' },
-        { title: 'Maximum Order Value', value: '$1,249.99' }
-      ],
-      charts: [
-        {
-          type: 'line',
-          title: 'Orders Over Time',
-          description: 'Daily order volume for the selected period',
-          dataKey: 'orders',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            orders: Math.floor(Math.random() * 50) + 20
-          }))
-        },
-        {
-          type: 'bar',
-          title: 'Order Value Distribution',
-          description: 'Breakdown of orders by value range',
-          dataKey: 'count',
-          data: [
-            { range: '$0-50', count: 320 },
-            { range: '$51-100', count: 450 },
-            { range: '$101-200', count: 280 },
-            { range: '$201-500', count: 150 },
-            { range: '$500+', count: 48 },
-          ]
-        }
-      ]
-    },
-    users: {
-      title: 'User Statistics',
-      stats: [
-        { title: 'Total Users', value: '2,450' },
-        { title: 'New Users (30d)', value: '345' },
-        { title: 'Active Users', value: '1,892' }
-      ],
-      charts: [
-        {
-          type: 'bar',
-          title: 'Orders by Demographics',
-          description: 'Shows how many orders came from each gender and age group across different locations',
-          dataKey: 'orders',
-          data: [
-            { location: 'Metro Manila', Male_18_24: 320, Female_18_24: 280, Male_25_34: 450, Female_25_34: 500 },
-            { location: 'Luzon', Male_18_24: 210, Female_18_24: 190, Male_25_34: 350, Female_25_34: 420 },
-            { location: 'Visayas', Male_18_24: 150, Female_18_24: 160, Male_25_34: 270, Female_25_34: 300 },
-            { location: 'Mindanao', Male_18_24: 130, Female_18_24: 140, Male_25_34: 200, Female_25_34: 240 }
-          ]
-        },
-        {
-          type: 'pie',
-          title: 'Customer Segments (Age Group)',
-          description: 'Shows which age group contributes the most to total revenue',
-          dataKey: 'value',
-          data: [
-            { name: '18–24', value: 15000 },
-            { name: '25–34', value: 42000 },
-            { name: '35–44', value: 38000 },
-            { name: '45–54', value: 21000 },
-            { name: '55+', value: 9000 }
-          ]
-        },
-        {
-          type: 'pie',
-          title: 'Customer Segments (Gender)',
-          description: 'Shows which gender segment contributes the most to total revenue',
-          dataKey: 'value',
-          data: [
-            { name: 'Male', value: 52000 },
-            { name: 'Female', value: 48000 }
-          ]
-        },
-        {
-          type: 'pie',
-          title: 'Customer Segments (Location)',
-          description: 'Shows which location segment contributes the most to total revenue',
-          dataKey: 'value',
-          data: [
-            { name: 'Metro Manila', value: 65000 },
-            { name: 'Luzon (Outside Metro Manila)', value: 28000 },
-            { name: 'Visayas', value: 18000 },
-            { name: 'Mindanao', value: 14000 }
-          ]
-        }
-      ]
-    },
-    products: {
-      title: 'Product Trends',
-      stats: [
-        { title: 'Total Products', value: '1,245' },
-        { title: 'Top Selling', value: 'Product X' },
-        { title: 'Low Stock', value: '42 items' }
-      ],
-      charts: [
-        {
-          type: 'line',
-          title: 'Sales Trends',
-          description: 'Product sales over time',
-          dataKey: 'sales',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            sales: Math.floor(Math.random() * 100) + 50
-          }))
-        },
-        {
-          type: 'bar',
-          title: 'Top Products',
-          description: 'Best selling products',
-          dataKey: 'units',
-          data: [
-            { name: 'Product A', units: 450 },
-            { name: 'Product B', units: 380 },
-            { name: 'Product C', units: 290 },
-            { name: 'Product D', units: 210 },
-            { name: 'Product E', units: 180 }
-          ]
-        }
-      ]
-    },
-    riders: {
-      title: 'Rider Performance',
-      stats: [
-        { title: 'Total Riders', value: '42' },
-        { title: 'Avg. Delivery Time', value: '28 min' },
-        { title: 'On-time Rate', value: '96.5%' }
-      ],
-      charts: [
-        {
-          type: 'line',
-          title: 'Rider Delivery Time Performance',
-          description: 'Average delivery time per rider',
-          dataKey: 'time',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            time: Math.floor(Math.random() * 15) + 20
-          }))
-        },
-        {
-          type: 'bar',
-          title: 'Orders Completed by Riders',
-          description: 'Orders delivered per rider',
-          dataKey: 'rating',
-          data: [
-            { name: 'Rider 1', rating: 4.8 },
-            { name: 'Rider 2', rating: 4.9 },
-            { name: 'Rider 3', rating: 4.7 },
-            { name: 'Rider 4', rating: 4.9 },
-            { name: 'Rider 5', rating: 4.6 }
-          ]
-        }
-      ]
+  // Fetch Functions
+  const fetchCountries = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/filters/countries`);
+      const data = await response.json();
+      if (data.success) setCountries(data.data);
+    } catch (error) {
+      console.error('Error fetching countries:', error);
     }
   };
-
-  const currentTab = tabData[activeTab];
-  const genders = ['Male', 'Female'];
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
-        setShowCityDropdown(false);
-      }
-      if (genderDropdownRef.current && !genderDropdownRef.current.contains(event.target)) {
-        setShowGenderDropdown(false);
-      }
-      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
-        setShowCountryDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
   
-  // Update available cities when selected countries change
-  // useEffect(() => {
-  //   if (selectedCountries.length > 0) {
-  //     const cities = [];
-  //     selectedCountries.forEach(countryId => {
-  //       const countryCities = citiesByCountry[countryId] || [];
-  //       cities.push(...countryCities.map(city => ({
-  //         name: city,
-  //         countryId,
-  //         countryName: countries.find(c => c.id === countryId)?.name || ''
-  //       })));
-  //     });
-  //     setAvailableCities(cities);
-  //   } else {
-  //     setAvailableCities([]);
-  //     setSelectedCities([]);
-  //   }
-  // }, [selectedCountries]);
-
-  // fetch dropdown opttions
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/filters/countries`);
-        const data = await response.json();
-        if (data.success) {
-          setCountries(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching countries:', error);
-      }
-    };
-    
-    fetchCountries();
-  }, []);
-
-  useEffect(() => {
-    const fetchCities = async () => {
-      try {
-        let url = `${API_BASE_URL}/api/filters/cities`;
-
-        // If you want to fetch based on just the first selected country
-        if (selectedCountries.length === 1) {
-          const selectedCountryName = countries.find(
-            c => c.id === selectedCountries[0]
-          )?.name;
-          if (selectedCountryName) {
-            url += `?country=${encodeURIComponent(selectedCountryName)}`;
-          }
-        }
-
-        const response = await fetch(url);
+  const fetchCities = async () => {
+    try {
+      const params = new URLSearchParams();
+      
+      // Get all selected country names
+      const selectedCountryNames = selectedCountries.map(countryId => {
+        const country = countries.find(c => c.id === countryId);
+        return country ? country.name : null;
+      }).filter(Boolean);
+      
+      // If we have selected countries, fetch cities for all of them
+      if (selectedCountryNames.length > 0) {
+        // Fetch cities for all selected countries
+        const citiesPromises = selectedCountryNames.map(countryName => {
+          return fetch(`${API_BASE_URL}/api/filters/cities?country=${encodeURIComponent(countryName)}`)
+            .then(res => res.json())
+            .then(data => data.success ? data.data : []);
+        });
+        
+        const citiesResults = await Promise.all(citiesPromises);
+        const allCities = citiesResults.flat();
+        
+        // Remove duplicates based on city and country
+        const uniqueCities = Array.from(new Map(
+          allCities.map(city => [`${city.city}_${city.country}`, city])
+        ).values());
+        
+        setAvailableCities(uniqueCities);
+      } else {
+        // If no countries selected, fetch all cities
+        const response = await fetch(`${API_BASE_URL}/api/filters/cities`);
         const data = await response.json();
         if (data.success) {
           setAvailableCities(data.data);
         }
-      } catch (error) {
-        console.error('Error fetching cities:', error);
       }
+      
+      // Clear selected cities if they're no longer in the filtered list
+      if (selectedCities.length > 0) {
+        const availableCityIds = new Set(availableCities.map(city => city.id));
+        const validSelectedCities = selectedCities.filter(id => availableCityIds.has(id));
+        
+        if (validSelectedCities.length !== selectedCities.length) {
+          setSelectedCities(validSelectedCities);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      setAvailableCities([]);
+    } finally {
+      if (selectedCountries.length === 0) {
+        setSelectedCities([]);
+      }
+    }
+  };
+
+  const fetchOrdersData = async () => {
+    console.log('🔄 Fetching data...');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const timeMap = { 'Year': 'year', 'Quarter': 'quarter', 'Month': 'month', 'Day': 'day' };
+      const baseParams = {
+        start_date: startDate,
+        end_date: endDate,
+        category: timeMap[selectedTime] || 'month'
+      };
+
+      const timeUrl = `${API_BASE_URL}/api/orders/total-over-time?${new URLSearchParams(baseParams)}`;
+      const timeResponse = await fetch(timeUrl);
+      const timeData = await timeResponse.json();
+
+      let locationData = [];
+      if (selectedCities.length > 0) {
+        const locationUrl = `${API_BASE_URL}/api/orders/by-location?${new URLSearchParams({
+          start_date: startDate,
+          end_date: endDate,
+          type: 'city'
+        })}`;
+        const locationResponse = await fetch(locationUrl);
+        const locationResponseData = await locationResponse.json();
+        if (locationResponseData.success) locationData = locationResponseData.data;
+      }
+
+      const categoryUrl = `${API_BASE_URL}/api/orders/by-product-category?${new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate
+      })}`;
+      const categoryResponse = await fetch(categoryUrl);
+      const categoryData = await categoryResponse.json();
+
+      setOrdersData({
+        ordersOverTime: timeData.success ? timeData.data : [],
+        ordersByLocation: locationData,
+        ordersByCategory: categoryData.success ? categoryData.data : [],
+        stats: {
+          totalOrders: timeData.success ? timeData.data.reduce((sum, item) => sum + (item.total_orders || 0), 0) : 0,
+          uniqueCustomers: timeData.success && timeData.data.length > 0 ? timeData.data[0].unique_customers || 0 : 0,
+          totalItems: timeData.success ? timeData.data.reduce((sum, item) => sum + (item.total_items || 0), 0) : 0
+        }
+      });
+
+      console.log('✅ Data loaded');
+    } catch (err) {
+      console.error('❌ Error:', err);
+      setError('Failed to fetch data. Check if backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effects
+  useEffect(() => { fetchCountries(); }, []);
+  useEffect(() => { fetchCities(); }, [selectedCountries, countries]);
+  useEffect(() => { fetchOrdersData(); }, []);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) setShowCityDropdown(false);
+      if (genderDropdownRef.current && !genderDropdownRef.current.contains(event.target)) setShowGenderDropdown(false);
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) setShowCountryDropdown(false);
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  // Fetch only when countries are selected
-  if (selectedCountries.length > 0) {
-    fetchCities();
-  } else {
-    setAvailableCities([]);
-    setSelectedCities([]);
-  }
-}, [selectedCountries, countries]);
-
+  // Helper Functions
   const toggleSelection = (item, selectedItems, setSelectedItems) => {
-    setSelectedItems(prev => 
-      prev.includes(item)
-        ? prev.filter(i => i !== item)
-        : [...prev, item]
-    );
+    setSelectedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
   };
 
   const getSelectedText = (items, isCountry = false) => {
     if (items.length === 0) return 'Select...';
-
     if (isCountry) {
       if (items.length <= 2) {
-        return items
-          .map(id => countries.find(c => c.id === id)?.name || id)
-          .join(', ');
+        return items.map(id => countries.find(c => c.id === id)?.name || id).join(', ');
       }
       return `${items.length} countries selected`;
     }
-
+    
+    // For cities
     if (items.length <= 2) {
       return items
-        .map(id => availableCities.find(c => c.id === id)?.name || id)
+        .map(id => {
+          const city = availableCities.find(c => c.id === id);
+          return city ? `${city.city} (${city.country})` : id;
+        })
         .join(', ');
     }
     return `${items.length} cities selected`;
   };
 
+  const handleFilterClick = () => {
+    console.log('🔍 Filter clicked');
+    fetchOrdersData();
+  };
+
+  // Data Transformation
+  const chartData = {
+    ordersOverTime: ordersData.ordersOverTime.map(item => ({
+      date: item.period,
+      orders: item.total_orders || 0,
+      customers: item.unique_customers || 0
+    })),
+    ordersByCategory: ordersData.ordersByCategory.map(item => ({
+      category: item.category || 'Unknown',
+      orders: item.total_orders || 0,
+      quantity: item.total_quantity || 0
+    })),
+    ordersByLocation: ordersData.ordersByLocation.map(item => ({
+      location: item.location || 'Unknown',
+      orders: item.total_orders || 0
+    }))
+  };
 
   return (
     <div className="dashboard-container">
@@ -355,98 +244,54 @@ const OrdersAnalytics = () => {
       <div className="dashboard-content">
         <aside className="sidebar">
           <h2 className="sidebar-title">Data Navigation</h2>
-
           <div className="filter-group">
-            {/* Start Date Picker */}
+            
+            {/* Start Date */}
             <div className="filter-item">
               <label className="filter-label">Start Date</label>
               <div className="date-picker">
-                <input
-                  type="text"
-                  className="date-input"
-                  value={startDate}
-                  readOnly
-                  onClick={() => setShowStartCalendar(!showStartCalendar)}
-                  placeholder="Select start date"
-                />
+                <input type="text" className="date-input" value={startDate} readOnly
+                  onClick={() => setShowStartCalendar(!showStartCalendar)} placeholder="Select start date" />
                 <Calendar className="calendar-icon" onClick={() => setShowStartCalendar(!showStartCalendar)} />
                 {showStartCalendar && (
                   <div className="calendar-dropdown">
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => {
-                        setStartDate(e.target.value);
-                        setShowStartCalendar(false);
-                      }}
-                      max={endDate}
-                      className="date-input"
-                    />
+                    <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setShowStartCalendar(false); }}
+                      max={endDate} className="date-input" />
                   </div>
                 )}
               </div>
             </div>
 
-            {/* End Date Picker */}
+            {/* End Date */}
             <div className="filter-item">
               <label className="filter-label">End Date</label>
               <div className="date-picker">
-                <input
-                  type="text"
-                  className="date-input"
-                  value={endDate}
-                  readOnly
-                  onClick={() => setShowEndCalendar(!showEndCalendar)}
-                  placeholder="Select end date"
-                />
+                <input type="text" className="date-input" value={endDate} readOnly
+                  onClick={() => setShowEndCalendar(!showEndCalendar)} placeholder="Select end date" />
                 <Calendar className="calendar-icon" onClick={() => setShowEndCalendar(!showEndCalendar)} />
                 {showEndCalendar && (
                   <div className="calendar-dropdown">
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => {
-                        setEndDate(e.target.value);
-                        setShowEndCalendar(false);
-                      }}
-                      min={startDate}
-                      className="date-input"
-                    />
+                    <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setShowEndCalendar(false); }}
+                      min={startDate} className="date-input" />
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Time Granularity Dropdown */}
+            {/* Time Granularity */}
             <div className="filter-item" ref={timeDropdownRef}>
               <label className="filter-label">Time Granularity</label>
               <div className="dropdown-container">
-                <div 
-                  className="dropdown-header"
-                  onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                >
+                <div className="dropdown-header" onClick={() => setShowTimeDropdown(!showTimeDropdown)}>
                   <span>{selectedTime || 'Select...'}</span>
                   <ChevronDown className={`dropdown-arrow ${showTimeDropdown ? 'rotate' : ''}`} />
                 </div>
-                
                 {showTimeDropdown && (
                   <div className="dropdown-options">
                     {timeOptions.map(option => (
-                      <div 
-                        key={option}
-                        className={`dropdown-option ${selectedTime === option ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedTime(option);
-                          setShowTimeDropdown(false);
-                          setFilters(prev => ({
-                            ...prev,
-                            timeGranularity: option.toLowerCase()
-                          }));
-                        }}
-                      >
-                        <span className="checkbox">
-                          {selectedTime === option && <Check size={14} />}
-                        </span>
+                      <div key={option} className={`dropdown-option ${selectedTime === option ? 'selected' : ''}`}
+                        onClick={() => { setSelectedTime(option); setShowTimeDropdown(false); }}>
+                        <span className="checkbox">{selectedTime === option && <Check size={14} />}</span>
                         {option}
                       </div>
                     ))}
@@ -455,41 +300,22 @@ const OrdersAnalytics = () => {
               </div>
             </div>
 
-            {/* Age Group Dropdown*/}
-            {activeTab === 'users' && (
-              <div className="filter-item" ref={ageGroupDropdownRef}>
-                <label className="filter-label">Age Group</label>
+            {/* Gender Filter */}
+            {(activeTab === 'orders' || activeTab === 'users') && (
+              <div className="filter-item" ref={genderDropdownRef}>
+                <label className="filter-label">Gender</label>
                 <div className="dropdown-container">
-                  <div 
-                    className="dropdown-header"
-                    onClick={() => setShowAgeGroupDropdown(!showAgeGroupDropdown)}
-                  >
-                    <span className={selectedAgeGroups.length === 0 ? 'placeholder' : ''}>
-                      {getSelectedText(selectedAgeGroups)}
-                    </span>
-                    <ChevronDown className={`dropdown-arrow ${showAgeGroupDropdown ? 'rotate' : ''}`} />
+                  <div className="dropdown-header" onClick={() => setShowGenderDropdown(!showGenderDropdown)}>
+                    <span className={selectedGenders.length === 0 ? 'placeholder' : ''}>{getSelectedText(selectedGenders)}</span>
+                    <ChevronDown className={`dropdown-arrow ${showGenderDropdown ? 'rotate' : ''}`} />
                   </div>
-                  
-                  {showAgeGroupDropdown && (
+                  {showGenderDropdown && (
                     <div className="dropdown-options">
-                      {ageGroups.map(group => (
-                        <div 
-                          key={group}
-                          className={`dropdown-option ${selectedAgeGroups.includes(group) ? 'selected' : ''}`}
-                          onClick={() => {
-                            toggleSelection(group, selectedAgeGroups, setSelectedAgeGroups);
-                            setFilters(prev => ({
-                              ...prev,
-                              ageGroups: selectedAgeGroups.includes(group)
-                                ? selectedAgeGroups.filter(g => g !== group)
-                                : [...selectedAgeGroups, group]
-                            }));
-                          }}
-                        >
-                          <span className="checkbox">
-                            {selectedAgeGroups.includes(group) && <Check size={14} />}
-                          </span>
-                          {group}
+                      {genders.map(gender => (
+                        <div key={gender} className={`dropdown-option ${selectedGenders.includes(gender) ? 'selected' : ''}`}
+                          onClick={() => toggleSelection(gender, selectedGenders, setSelectedGenders)}>
+                          <span className="checkbox">{selectedGenders.includes(gender) && <Check size={14} />}</span>
+                          {gender}
                         </div>
                       ))}
                     </div>
@@ -498,33 +324,26 @@ const OrdersAnalytics = () => {
               </div>
             )}
 
-            {/* Gender Dropdown */}
-            {(activeTab === 'orders' || activeTab === 'users') && (
-              <div className="filter-item" ref={genderDropdownRef}>
-                <label className="filter-label">Gender</label>
+            {/* Age Group Filter */}
+            {activeTab === 'users' && (
+              <div className="filter-item" ref={ageGroupDropdownRef}>
+                <label className="filter-label">Age Group</label>
                 <div className="dropdown-container">
-                  <div 
-                    className="dropdown-header"
-                    onClick={() => setShowGenderDropdown(!showGenderDropdown)}
-                  >
-                    <span className={selectedGenders.length === 0 ? 'placeholder' : ''}>
-                      {getSelectedText(selectedGenders)}
+                  <div className="dropdown-header" onClick={() => setShowAgeGroupDropdown(!showAgeGroupDropdown)}>
+                    <span className={selectedAgeGroups.length === 0 ? 'placeholder' : ''}>
+                      {selectedAgeGroups.length === 0 ? 'Select...' : 
+                       selectedAgeGroups.length <= 2 ? selectedAgeGroups.join(', ') : 
+                       `${selectedAgeGroups.length} groups selected`}
                     </span>
-                    <ChevronDown className={`dropdown-arrow ${showGenderDropdown ? 'rotate' : ''}`} />
+                    <ChevronDown className={`dropdown-arrow ${showAgeGroupDropdown ? 'rotate' : ''}`} />
                   </div>
-                  
-                  {showGenderDropdown && (
+                  {showAgeGroupDropdown && (
                     <div className="dropdown-options">
-                      {genders.map(gender => (
-                        <div 
-                          key={gender} 
-                          className={`dropdown-option ${selectedGenders.includes(gender) ? 'selected' : ''}`}
-                          onClick={() => toggleSelection(gender, selectedGenders, setSelectedGenders)}
-                        >
-                          <span className="checkbox">
-                            {selectedGenders.includes(gender) && <Check size={14} />}
-                          </span>
-                          {gender}
+                      {ageGroups.map(group => (
+                        <div key={group} className={`dropdown-option ${selectedAgeGroups.includes(group) ? 'selected' : ''}`}
+                          onClick={() => toggleSelection(group, selectedAgeGroups, setSelectedAgeGroups)}>
+                          <span className="checkbox">{selectedAgeGroups.includes(group) && <Check size={14} />}</span>
+                          {group}
                         </div>
                       ))}
                     </div>
@@ -537,33 +356,16 @@ const OrdersAnalytics = () => {
             <div className="filter-item" ref={countryDropdownRef}>
               <label className="filter-label">Countries</label>
               <div className="dropdown-container">
-                <div 
-                  className="dropdown-header"
-                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                >
-                  <span className={selectedCountries.length === 0 ? 'placeholder' : ''}>
-                    {getSelectedText(selectedCountries, true)}
-                  </span>
+                <div className="dropdown-header" onClick={() => setShowCountryDropdown(!showCountryDropdown)}>
+                  <span className={selectedCountries.length === 0 ? 'placeholder' : ''}>{getSelectedText(selectedCountries, true)}</span>
                   <ChevronDown className={`dropdown-arrow ${showCountryDropdown ? 'rotate' : ''}`} />
                 </div>
-                
                 {showCountryDropdown && (
                   <div className="dropdown-options">
                     {countries.map(country => (
-                      <div 
-                        key={country.id}
-                        className={`dropdown-option ${selectedCountries.includes(country.id) ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedCountries(prev => 
-                            prev.includes(country.id)
-                              ? prev.filter(id => id !== country.id)
-                              : [...prev, country.id]
-                          );
-                        }}
-                      >
-                        <span className="checkbox">
-                          {selectedCountries.includes(country.id) && <Check size={14} />}
-                        </span>
+                      <div key={country.id} className={`dropdown-option ${selectedCountries.includes(country.id) ? 'selected' : ''}`}
+                        onClick={() => setSelectedCountries(prev => prev.includes(country.id) ? prev.filter(id => id !== country.id) : [...prev, country.id])}>
+                        <span className="checkbox">{selectedCountries.includes(country.id) && <Check size={14} />}</span>
                         {country.name}
                       </div>
                     ))}
@@ -574,197 +376,273 @@ const OrdersAnalytics = () => {
 
             {/* City Dropdown */}
             <div className="filter-item" ref={cityDropdownRef}>
-            <label className="filter-label">Cities</label>
-            <div
-              className={`dropdown-container ${
-                selectedCountries.length === 0 ? 'disabled' : ''
-              }`}
-            >
-              <div
-                className="dropdown-header"
-                onClick={() => {
-                  if (selectedCountries.length === 0) return; // prevent opening
-                  setShowCityDropdown(!showCityDropdown);
-                }}
-              >
-                <span
-                  className={
-                    selectedCities.length === 0
-                      ? 'placeholder'
-                      : ''
-                  }
+              <label className="filter-label">Cities</label>
+              <div className={`dropdown-container ${selectedCountries.length === 0 ? 'disabled' : ''}`}>
+                <div 
+                  className="dropdown-header" 
+                  onClick={() => { 
+                    if (selectedCountries.length === 0) return; 
+                    setShowCityDropdown(!showCityDropdown);
+                    // Fetch cities when dropdown is opened if not already loaded
+                    if (!showCityDropdown && availableCities.length === 0) {
+                      fetchCities();
+                    }
+                  }}
                 >
-                  {selectedCountries.length === 0
-                    ? 'Select a country first...'
-                    : getSelectedText(selectedCities)}
-                </span>
-                <ChevronDown
-                  className={`dropdown-arrow ${
-                    showCityDropdown ? 'rotate' : ''
-                  }`}
-                />
-              </div>
-
-              {showCityDropdown && selectedCountries.length > 0 && (
-                <div className="dropdown-options">
-                  {availableCities.map(city => (
-                    <div
-                      key={city.id}
-                      className={`dropdown-option ${
-                        selectedCities.includes(city.id) ? 'selected' : ''
-                      }`}
-                      onClick={() =>
-                        toggleSelection(city.id, selectedCities, setSelectedCities)
-                      }
-                    >
-                      <span className="checkbox">
-                        {selectedCities.includes(city.id) && <Check size={14} />}
-                      </span>
-                      {city.name}
-                    </div>
-                  ))}
+                  <span className={selectedCities.length === 0 ? 'placeholder' : ''}>
+                    {selectedCountries.length === 0 
+                      ? 'Select a country first...' 
+                      : availableCities.length === 0 
+                        ? 'No cities available' 
+                        : getSelectedText(selectedCities)}
+                  </span>
+                  <ChevronDown className={`dropdown-arrow ${showCityDropdown ? 'rotate' : ''}`} />
                 </div>
-              )}
+                {showCityDropdown && selectedCountries.length > 0 && (
+                  <div className="dropdown-options">
+                    {availableCities.length === 0 ? (
+                      <div className="dropdown-option disabled">
+                        {loading ? 'Loading cities...' : 'No cities available for selected country'}
+                      </div>
+                    ) : (
+                      availableCities.map(city => (
+                        <div 
+                          key={city.id} 
+                          className={`dropdown-option ${selectedCities.includes(city.id) ? 'selected' : ''}`}
+                          onClick={() => toggleSelection(city.id, selectedCities, setSelectedCities)}
+                          title={`${city.city}, ${city.country}`}
+                        >
+                          <span className="checkbox">
+                            {selectedCities.includes(city.id) && <Check size={14} />}
+                          </span>
+                          {city.city} <span className="text-gray-500 text-sm">({city.country})</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-
-            
             {/* Filter Button */}
-            <button 
-              className="filter-button"
-              onClick={() => {
-                console.log('Selected Genders:', selectedGenders);
-                console.log('Selected Cities:', selectedCities);
-                console.log('Date Range:', { startDate, endDate });
-              }}
-            >
-              Filter Results
+            <button className="filter-button" onClick={handleFilterClick} disabled={loading}>
+              {loading ? 'Loading...' : 'Filter Results'}
             </button>
+
+            {error && <div style={{ color: 'red', marginTop: '10px', fontSize: '14px', padding: '10px', backgroundColor: '#fee', borderRadius: '4px' }}>{error}</div>}
           </div>
         </aside>
 
         <div className="content-wrapper">
-          {/* Tabs/buttons at the top */}
           <div className="tabs-container">
-            <button
-              className={`tab-button orders-tab ${activeTab === 'orders' ? 'active' : ''}`}
-              onClick={() => setActiveTab('orders')}
-            >
-              Orders Analytics
-            </button>
-
-            <button
-              className={`tab-button users-tab ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-            >
-              User Statistics
-            </button>
-
-            <button
-              className={`tab-button products-tab ${activeTab === 'products' ? 'active' : ''}`}
-              onClick={() => setActiveTab('products')}
-            >
-              Product Trends
-            </button>
-
-            <button
-              className={`tab-button riders-tab ${activeTab === 'riders' ? 'active' : ''}`}
-              onClick={() => setActiveTab('riders')}
-            >
-              Rider Performance
-            </button>
+            <button className={`tab-button orders-tab ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>Orders Analytics</button>
+            <button className={`tab-button users-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>User Statistics</button>
+            <button className={`tab-button products-tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>Product Trends</button>
+            <button className={`tab-button riders-tab ${activeTab === 'riders' ? 'active' : ''}`} onClick={() => setActiveTab('riders')}>Rider Performance</button>
           </div>
-
 
           <main className={`main-content ${activeTab}-active`}>
             <div className="main-content-container">
-              <div className="chart-wrapper">
-                <div className="chart-grid">
-                  {currentTab.charts.map((chart, index) => (
-                    <div key={index} className="chart-card">
+              {loading && <div style={{ textAlign: 'center', padding: '40px' }}><div style={{ fontSize: '18px', marginBottom: '10px' }}>⏳ Loading data...</div></div>}
+              
+              {!loading && activeTab === 'orders' && (
+                <div className="chart-wrapper">
+                  <div className="chart-grid">
+                    <div className="chart-card">
                       <div className="chart-header">
-                        <h3>{chart.title}</h3>
-                        <p>{chart.description}</p>
+                        <h3>Orders Over Time</h3>
+                        <p>Showing {chartData.ordersOverTime.length} data points</p>
                       </div>
                       <div className="chart-container">
-                        <ResponsiveContainer width="100%" height="100%">
-                          {chart.type === 'line' ? (
-                            <LineChart
-                              data={chart.data}
-                              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                            >
+                        {chartData.ordersOverTime.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData.ordersOverTime} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} />
                               <XAxis dataKey="date" />
                               <YAxis />
                               <Tooltip />
                               <Legend />
-                              <Line 
-                                type="monotone" 
-                                dataKey={chart.dataKey} 
-                                stroke="#3b82f6" 
-                                strokeWidth={2} 
-                                dot={false} 
-                              />
+                              <Line type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={2} name="Total Orders" />
+                              <Line type="monotone" dataKey="customers" stroke="#10b981" strokeWidth={2} name="Unique Customers" />
                             </LineChart>
-                          ) : chart.type === 'pie' ? (
-                            <PieChart>
-                              <Tooltip />
-                              <Legend />
-                              <Pie
-                                data={chart.data}
-                                dataKey={chart.dataKey}
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={100}
-                                label
-                              >
-                                {chart.data.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'][index % 4]} />
-                                ))}
-                              </Pie>
-                            </PieChart>
-                          ) : (
-                            <BarChart
-                              layout={chart.dataKey === 'rating' ? 'vertical' : 'horizontal'}
-                              data={chart.data}
-                              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              {chart.dataKey === 'rating' ? (
-                                <>
-                                  <XAxis type="number" />
-                                  <YAxis dataKey="name" type="category" />
-                                </>
-                              ) : (
-                                <>
-                                  <XAxis dataKey={Object.keys(chart.data[0])[0]} />
-                                  <YAxis />
-                                </>
-                              )}
-                              <Tooltip />
-                              <Legend />
-                              <Bar 
-                                dataKey={chart.dataKey} 
-                                fill="#3b82f6" 
-                                radius={[4, 4, 0, 0]} 
-                              />
-                            </BarChart>
-                          )}
-                        </ResponsiveContainer>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="no-data">No data available for the selected filters</div>
+                        )}
                       </div>
                     </div>
-                  ))}
+
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>Orders by Product Category</h3>
+                        <p>Top {chartData.ordersByCategory.length} categories</p>
+                      </div>
+                      <div className="chart-container">
+                        {chartData.ordersByCategory.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.ordersByCategory} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="category" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Total Orders" />
+                              <Bar dataKey="quantity" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Total Quantity" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="no-data">No category data available</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {chartData.ordersByLocation.length > 0 && (
+                      <div className="chart-card">
+                        <div className="chart-header">
+                          <h3>Orders by Location</h3>
+                          <p>{chartData.ordersByLocation.length} locations</p>
+                        </div>
+                        <div className="chart-container">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.ordersByLocation} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="location" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Bar dataKey="orders" fill="#10b981" radius={[4, 4, 0, 0]} name="Total Orders" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Users Tab */}
+              {!loading && activeTab === 'users' && (
+                <div className="chart-wrapper">
+                  <div className="chart-grid">
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>User Registrations Over Time</h3>
+                        <p>Showing user growth</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>User Statistics</h3>
+                            <p>User analytics and statistics will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>User Demographics</h3>
+                        <p>Age and gender distribution</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>Demographics</h3>
+                            <p>User demographic charts will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Products Tab */}
+              {!loading && activeTab === 'products' && (
+                <div className="chart-wrapper">
+                  <div className="chart-grid">
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>Product Performance</h3>
+                        <p>Top performing products</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>Product Trends</h3>
+                            <p>Product performance metrics will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>Inventory Levels</h3>
+                        <p>Current stock status</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>Inventory</h3>
+                            <p>Inventory management charts will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Riders Tab */}
+              {!loading && activeTab === 'riders' && (
+                <div className="chart-wrapper">
+                  <div className="chart-grid">
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>Rider Performance</h3>
+                        <p>Delivery metrics and ratings</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>Rider Analytics</h3>
+                            <p>Rider performance metrics will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="chart-card">
+                      <div className="chart-header">
+                        <h3>Delivery Times</h3>
+                        <p>Average delivery duration</p>
+                      </div>
+                      <div className="chart-container">
+                        <div className="coming-soon">
+                          <div className="coming-soon-content">
+                            <h3>Delivery Analytics</h3>
+                            <p>Delivery performance metrics will be displayed here</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!loading && activeTab !== 'orders' && (
+                <div style={{ textAlign: 'center', padding: '60px' }}>
+                  <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Tab</h2>
+                  <p style={{ color: '#666', marginTop: '10px' }}>Ready for your content</p>
+                </div>
+              )}
             </div>
           </main>
         </div>
-
       </div>
     </div>
   );
-}
+};
 
 export default OrdersAnalytics;
