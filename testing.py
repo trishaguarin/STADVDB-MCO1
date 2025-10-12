@@ -127,16 +127,15 @@ def orders_by_location():
         return jsonify({"success": False, "error": str(e)}), 500
     
 # ==============================================
-# working BUTTT need to make it so that if want lang na by date, date lang ung sa group by, loc lang, or neither, or both. 
-
 @app.route('/api/orders/total-orders-by-product-category', methods=['GET']) 
 def orders_by_product_category():
-    """Total Orders Per Product Category - Which product categories generate the most orders?"""
-    date_category = request.args.get('category', 'day') # day, week, month, quarter, year
-    location_category = request.args.get('type', 'city')  # city, country
+    """Total Orders Per Product Category - Which product categories generate the most orders based on [CATEGORY]?"""
+    date_category = request.args.get('category')  # day, week, month, quarter, year or None
+    location_category = request.args.get('type')  # city, country or None
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
+    # Date format map
     date_formats = {
         'day': "DATE(o.createdAt)",
         'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
@@ -145,37 +144,54 @@ def orders_by_product_category():
         'year': "YEAR(o.createdAt)"
     }
 
-    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
-    location_field = 'city' if location_category == 'city' else 'country'
+    # Initialize variables
+    select_fields = ["p.category"]
+    group_by_fields = ["p.category"]
 
+    # Handle date grouping
+    if date_category in date_formats:
+        date_format = date_formats[date_category]
+        select_fields.append(f"{date_format} AS period")
+        group_by_fields.append("period")
+
+    # Handle location grouping
+    if location_category in ['city', 'country']:
+        location_field = f"u.{location_category}"
+        select_fields.append(f"{location_field} AS location")
+        group_by_fields.append("location")
+
+    # Common aggregation fields
+    select_fields.extend([
+        "COUNT(DISTINCT o.orderID) as total_orders",
+        "SUM(o.quantity) as total_quantity",
+        "COUNT(DISTINCT o.userID) as unique_customers"
+    ])
+
+    # Build WHERE clause
     conditions = []
     params = {}
-    
+
     if start_date:
         conditions.append("o.createdAt >= :start_date")
         params['start_date'] = start_date
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
-
+        
     where_clause = build_where_clause(conditions)
 
+    # Final query
     query = f"""
         SELECT 
-            {date_format} as period,
-            u.{location_field} as location,
-            p.category,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_quantity,
-            COUNT(DISTINCT o.userID) as unique_customers
+            {', '.join(select_fields)}
         FROM factorders o
         JOIN dimproducts p ON o.productID = p.productID
-        JOIN dimusers u on o.userID = u.userID
+        JOIN dimusers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY p.category, period, location  # to adjust pa this
+        GROUP BY {', '.join(group_by_fields)}
         ORDER BY total_orders DESC
     """
-    
+
     try:
         results = execute_query(query, params)
         return jsonify({"success": True, "data": results})
