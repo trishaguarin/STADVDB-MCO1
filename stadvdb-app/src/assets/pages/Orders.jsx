@@ -327,15 +327,24 @@ const OrdersAnalytics = () => {
 
   const getSelectedText = (items, isCountry = false) => {
     if (items.length === 0) return 'Select...';
+
     if (isCountry) {
       if (items.length <= 2) {
-        return items.map(id => countries.find(c => c.id === id)?.name || id).join(', ');
+        return items
+          .map(id => countries.find(c => c.id === id)?.name || id)
+          .join(', ');
       }
       return `${items.length} countries selected`;
     }
-    if (items.length <= 2) return items.map(city => city.name || city).join(', ');
+
+    if (items.length <= 2) {
+      return items
+        .map(id => availableCities.find(c => c.id === id)?.name || id)
+        .join(', ');
+    }
     return `${items.length} cities selected`;
   };
+
 
   return (
     <div className="dashboard-container">
