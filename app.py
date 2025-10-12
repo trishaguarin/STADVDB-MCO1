@@ -236,7 +236,6 @@ def total_orders_over_time():
 def top_performing_products():
     """Top Selling Products - Which products are our top performers?"""
     metric = request.args.get('metric', 'quantity')
-    limit = request.args.get('limit', 10, type=int)
     category = request.args.get('category', '')
     
     if metric == 'revenue':
@@ -268,7 +267,6 @@ def top_performing_products():
         {where_clause}
         GROUP BY p.productID, p.name, p.category, p.price
         ORDER BY {order_field} DESC
-        LIMIT {limit}
     """
     
     try:
@@ -339,7 +337,7 @@ def category_performance():
 # ==============================================
 @app.route('/api/products/sales-trends', methods=['GET'])
 def product_sales_trends():
-    """Product sales trends over time"""
+    """Product sales trends over time (unlimited for optimization testing)"""
     date_category = request.args.get('category', 'month')
     product_category = request.args.get('product_category', '')
     
