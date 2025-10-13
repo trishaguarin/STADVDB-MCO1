@@ -24,6 +24,12 @@ const OrdersAnalytics = () => {
   const [selectedTime, setSelectedTime] = useState('Month');
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [availableCities, setAvailableCities] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [topProductsByCategory, setTopProductsByCategory] = useState([]);
+  const [categoryPerformance, setCategoryPerformance] = useState([]);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
   
   // Refs for dropdowns
   const cityDropdownRef = useRef(null);
@@ -31,6 +37,7 @@ const OrdersAnalytics = () => {
   const timeDropdownRef = useRef(null);
   const ageGroupDropdownRef = useRef(null);
   const countryDropdownRef = useRef(null);
+  const categoryDropdownRef = useRef(null);
   
   // Constants
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
@@ -213,35 +220,49 @@ const OrdersAnalytics = () => {
     products: {
       title: 'Product Trends',
       stats: [
-        { title: 'Total Products', value: '1,245' },
-        { title: 'Top Selling', value: 'Product X' },
-        { title: 'Low Stock', value: '42 items' }
+        { 
+          title: 'Total Products', 
+          value: topProducts.length > 0 
+            ? topProducts.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()
+            : '0'
+        },
+        { 
+          title: 'Top Product Revenue', 
+          value: topProducts.length > 0 
+            ? '$' + (topProducts[0]?.total || 0).toLocaleString()
+            : '$0'
+        },
+        { 
+          title: 'Categories', 
+          value: topProductsByCategory.length > 0
+            ? [...new Set(topProductsByCategory.map(p => p.category))].length
+            : '0'
+        }
       ],
       charts: [
         {
-          type: 'line',
-          title: 'Sales Trends',
-          description: 'Product sales over time',
-          dataKey: 'sales',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            sales: Math.floor(Math.random() * 100) + 50
-          })),
-          xAxisKey: 'date'
+          type: 'bar',
+          title: 'Top 10 Products by Revenue',
+          description: 'Which products generate the most revenue?',
+          dataKey: 'total',
+          data: topProducts,
+          xAxisKey: 'name'
         },
         {
           type: 'bar',
-          title: 'Top Products',
-          description: 'Best selling products',
-          dataKey: 'units',
-          data: [
-            { name: 'Product A', units: 450 },
-            { name: 'Product B', units: 380 },
-            { name: 'Product C', units: 290 },
-            { name: 'Product D', units: 210 },
-            { name: 'Product E', units: 180 }
-          ],
+          title: 'Top Products Per Category',
+          description: 'Best performing products in each category',
+          dataKey: 'total_revenue',
+          data: topProductsByCategory,
           xAxisKey: 'name'
+        },
+        {
+          type: 'line',
+          title: 'Category Performance Over Time',
+          description: `Average order value per category by ${selectedTime}`,
+          dataKey: 'avg_order_value',
+          data: categoryPerformance,
+          xAxisKey: 'period'
         }
       ]
     },
@@ -513,6 +534,73 @@ const OrdersAnalytics = () => {
     }
   };
 
+  const fetchProductsData = async () => {
+    setLoading(true);
+    try {
+      const timeCategory = selectedTime.toLowerCase();
+      
+      const selectedCountryNames = selectedCountries
+        .map(id => countries.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      const selectedCityNames = selectedCities
+        .map(id => availableCities.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+
+      // Fetch Top Performing Products (by revenue)
+      const topProductsParams = new URLSearchParams({
+        metric: 'revenue',
+        order: 'DESC',
+        start_date: startDate,
+        end_date: endDate
+      });
+      const topProductsRes = await fetch(
+        `${API_BASE_URL}/api/products/top-performing?${topProductsParams}`
+      );
+      const topProductsData = await topProductsRes.json();
+      if (topProductsData.success) {
+        // Limit to top 10 for display
+        setTopProducts(topProductsData.data.slice(0, 10));
+      }
+
+      // Fetch Top Products Per Category (top 3 per category)
+      const topPerCategoryParams = new URLSearchParams({
+        metric: 'revenue',
+        top_n: '3',
+        start_date: startDate,
+        end_date: endDate
+      });
+      const topPerCategoryRes = await fetch(
+        `${API_BASE_URL}/api/products/top-performing-per-category?${topPerCategoryParams}`
+      );
+      const topPerCategoryData = await topPerCategoryRes.json();
+      if (topPerCategoryData.success) {
+        setTopProductsByCategory(topPerCategoryData.data);
+      }
+
+      // Fetch Category Performance Over Time
+      const categoryPerfParams = new URLSearchParams({
+        time_granularity: timeCategory,
+        start_date: startDate,
+        end_date: endDate
+      });
+      const categoryPerfRes = await fetch(
+        `${API_BASE_URL}/api/products/category-performance?${categoryPerfParams}`
+      );
+      const categoryPerfData = await categoryPerfRes.json();
+      if (categoryPerfData.success) {
+        setCategoryPerformance(categoryPerfData.data);
+      }
+
+    } catch (error) {
+      console.error('Error fetching products data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchRiderData = async () => {
     setLoading(true);
     try {
@@ -655,6 +743,8 @@ const OrdersAnalytics = () => {
       fetchCustomerData();
     } else if (activeTab === 'riders') {
       fetchRiderData();
+    } else if (activeTab === 'products') {
+      fetchProductsData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -980,6 +1070,8 @@ const OrdersAnalytics = () => {
                   fetchCustomerData();
                 } else if (activeTab === 'riders') {
                   fetchRiderData();
+                } else if (activeTab === 'products') {
+                  fetchProductsData();
                 }
               }}
               disabled={loading}
