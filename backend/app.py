@@ -745,6 +745,10 @@ def product_sales_trends():
 def orders_per_rider():
     """Orders per Rider - How many orders were delivered by each rider/courier per [DATE CATEGORY]?"""
     date_category = request.args.get('time_granularity')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     courier_name = request.args.get('courier', '')
     
     date_formats = {
@@ -760,6 +764,24 @@ def orders_per_rider():
     conditions = []
     params = {}
     
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
     if courier_name:
         conditions.append("r.courierName = :courier_name")
         params['courier_name'] = courier_name
@@ -768,18 +790,16 @@ def orders_per_rider():
     
     query = f"""
         SELECT 
-            {date_format} as period,
-            r.courierName,
-            CONCAT(r.firstName, ' ', r.lastName) as rider_name,
-            r.vehicleType,
+            r.courierName as courier_name,
             COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_items,
             COUNT(DISTINCT o.userID) as unique_customers
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
+        JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY period, r.courierName, rider_name, r.vehicleType
-        ORDER BY period, total_orders DESC
+        GROUP BY r.courierName
+        ORDER BY total_orders DESC
     """
     
     try:
@@ -794,6 +814,10 @@ def delivery_performance():
     """Delivery Time - Average delivery time by rider/courier"""
     date_category = request.args.get('time_granularity')
     location_type = request.args.get('location_type') #city or country
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     courier_name = request.args.get('courier', '')
     
     date_formats = {
@@ -810,6 +834,24 @@ def delivery_performance():
     conditions = ["o.deliveryDate IS NOT NULL"]
     params = {}
     
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
     if courier_name:
         conditions.append("r.courierName = :courier_name")
         params['courier_name'] = courier_name
@@ -818,21 +860,17 @@ def delivery_performance():
     
     query = f"""
         SELECT 
-            {date_format} as period,
-            u.{location_field} as location,
-            r.courierName,
-            CONCAT(r.firstName, ' ', r.lastName) as rider_name,
-            r.vehicleType,
+            r.courierName as courier_name,
             COUNT(DISTINCT o.orderID) as total_deliveries,
-            AVG(DATEDIFF(o.createdAt, o.deliveryDate)) as avg_delivery_days,
-            MIN(DATEDIFF(o.createdAt, o.deliveryDate)) as min_delivery_days,
-            MAX(DATEDIFF(o.createdAt, o.deliveryDate)) as max_delivery_days
+            AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days,
+            MIN(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as min_delivery_days,
+            MAX(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as max_delivery_days
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY period, location, r.courierName, rider_name, r.vehicleType
-        ORDER BY period, avg_delivery_days ASC
+        GROUP BY r.courierName
+        ORDER BY avg_delivery_days
     """
     
     try:

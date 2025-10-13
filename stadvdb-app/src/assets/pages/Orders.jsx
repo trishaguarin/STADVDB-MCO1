@@ -78,6 +78,8 @@ const OrdersAnalytics = () => {
   const [customerSegmentsByAge, setCustomerSegmentsByAge] = useState([]);
   const [customerSegmentsByGender, setCustomerSegmentsByGender] = useState([]);
   const [customerSegmentsByLocation, setCustomerSegmentsByLocation] = useState([]);
+  const [ordersPerRider, setOrdersPerRider] = useState([]);
+  const [deliveryPerformance, setDeliveryPerformance] = useState([]);
 
   // Memoize stats calculations to prevent re-renders
   const ordersStats = React.useMemo(() => [
@@ -266,35 +268,39 @@ const OrdersAnalytics = () => {
     riders: {
       title: 'Rider Performance',
       stats: [
-        { title: 'Total Riders', value: '42' },
-        { title: 'Avg. Delivery Time', value: '28 min' },
-        { title: 'On-time Rate', value: '96.5%' }
+        { 
+          title: 'Total Couriers', 
+          value: ordersPerRider.length > 0 
+            ? [...new Set(ordersPerRider.map(r => r.courier_name))].length.toLocaleString()
+            : '0'
+        },
+        { 
+          title: 'Total Deliveries', 
+          value: ordersPerRider.reduce((sum, r) => sum + (r.total_orders || 0), 0).toLocaleString() || '0'
+        },
+        { 
+          title: 'Avg. Delivery Days', 
+          value: deliveryPerformance.length > 0
+            ? (deliveryPerformance.reduce((sum, r) => sum + (parseFloat(r.avg_delivery_days) || 0), 0) / deliveryPerformance.length).toFixed(1) + ' days'
+            : '0 days'
+        }
       ],
       charts: [
         {
-          type: 'line',
-          title: 'Rider Delivery Time Performance',
-          description: 'Average delivery time per rider',
-          dataKey: 'time',
-          data: Array.from({ length: 7 }, (_, i) => ({
-            date: `2025-01-${String(i + 1).padStart(2, '0')}`,
-            time: Math.floor(Math.random() * 15) + 20
-          })),
-          xAxisKey: 'date'
+          type: 'bar',
+          title: 'Orders per Rider',
+          description: `How many orders were delivered by each courier this ${selectedTime}?`,
+          dataKey: 'total_orders',
+          data: ordersPerRider.slice(0, 20),
+          xAxisKey: 'courier_name'
         },
         {
           type: 'bar',
-          title: 'Orders Completed by Riders',
-          description: 'Orders delivered per rider',
-          dataKey: 'rating',
-          data: [
-            { name: 'Rider 1', rating: 4.8 },
-            { name: 'Rider 2', rating: 4.9 },
-            { name: 'Rider 3', rating: 4.7 },
-            { name: 'Rider 4', rating: 4.9 },
-            { name: 'Rider 5', rating: 4.6 }
-          ],
-          xAxisKey: 'name'
+          title: 'Delivery Time Performance',
+          description: `What is the average time of order delivery by courier?`,
+          dataKey: 'avg_delivery_days',
+          data: deliveryPerformance.slice(0, 20),
+          xAxisKey: 'courier_name'
         }
       ]
     }
@@ -525,6 +531,63 @@ const OrdersAnalytics = () => {
     }
   };
 
+  const fetchRiderData = async () => {
+    setLoading(true);
+    try {
+      const timeCategory = selectedTime.toLowerCase();
+      
+      const selectedCountryNames = selectedCountries
+        .map(id => countries.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+      
+      const selectedCityNames = selectedCities
+        .map(id => availableCities.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+
+      // Fetch Orders per Rider
+      const ordersPerRiderParams = new URLSearchParams({
+        time_granularity: timeCategory,
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) ordersPerRiderParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) ordersPerRiderParams.append('cities', selectedCityNames);
+      
+      const ordersPerRiderRes = await fetch(
+        `${API_BASE_URL}/api/riders/orders-per-rider?${ordersPerRiderParams}`
+      );
+      const ordersPerRiderData = await ordersPerRiderRes.json();
+      if (ordersPerRiderData.success) {
+        setOrdersPerRider(ordersPerRiderData.data);
+      }
+
+      // Fetch Delivery Performance
+      const deliveryPerfParams = new URLSearchParams({
+        time_granularity: timeCategory,
+        location_type: 'country',
+        start_date: startDate,
+        end_date: endDate
+      });
+      if (selectedCountryNames) deliveryPerfParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) deliveryPerfParams.append('cities', selectedCityNames);
+      
+      const deliveryPerfRes = await fetch(
+        `${API_BASE_URL}/api/riders/delivery-performance?${deliveryPerfParams}`
+      );
+      const deliveryPerfData = await deliveryPerfRes.json();
+      if (deliveryPerfData.success) {
+        setDeliveryPerformance(deliveryPerfData.data);
+      }
+
+    } catch (error) {
+      console.error('Error fetching rider data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentTab = tabData[activeTab];
   const genders = ['Male', 'Female'];
 
@@ -550,25 +613,6 @@ const OrdersAnalytics = () => {
     };
   }, []);
   
-  // Update available cities when selected countries change
-  // useEffect(() => {
-  //   if (selectedCountries.length > 0) {
-  //     const cities = [];
-  //     selectedCountries.forEach(countryId => {
-  //       const countryCities = citiesByCountry[countryId] || [];
-  //       cities.push(...countryCities.map(city => ({
-  //         name: city,
-  //         countryId,
-  //         countryName: countries.find(c => c.id === countryId)?.name || ''
-  //       })));
-  //     });
-  //     setAvailableCities(cities);
-  //   } else {
-  //     setAvailableCities([]);
-  //     setSelectedCities([]);
-  //   }
-  // }, [selectedCountries]);
-
   // fetch dropdown opttions
   useEffect(() => {
     const fetchCountries = async () => {
@@ -627,6 +671,8 @@ const OrdersAnalytics = () => {
       fetchSalesData();
     } else if (activeTab === 'users') {
       fetchCustomerData();
+    } else if (activeTab === 'riders') {
+      fetchRiderData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -950,6 +996,8 @@ const OrdersAnalytics = () => {
                   fetchSalesData();
                 } else if (activeTab === 'users') {
                   fetchCustomerData();
+                } else if (activeTab === 'riders') {
+                  fetchRiderData();
                 }
               }}
               disabled={loading}
