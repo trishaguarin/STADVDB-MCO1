@@ -37,45 +37,60 @@ def build_where_clause(conditions):
 
 @app.route('/')
 def hello():
-    return "OLAP Backend API etc etc"
+    return "OLAP Backend API"
 
 
 # ========== ORDERS REPORTS ==========
 @app.route('/api/orders/total-orders-over-time', methods=['GET'])
 def total_orders_over_time():
     """Total Orders Over Time - How many orders do we receive each [DATE CATEGORY]?"""
-    date_category = request.args.get('category', 'day')  # day, week, month, quarter, year
+    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     
     date_formats = {
-        'day': "DATE(createdAt)",
-        'week': "DATE_FORMAT(createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(createdAt), '-Q', QUARTER(createdAt))",
-        'year': "YEAR(createdAt)"
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
     }
     
-    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
+    date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
     
     query = f"""
         SELECT 
             {date_format} as period,
-            COUNT(DISTINCT orderID) as total_orders,
-            COUNT(DISTINCT userID) as unique_customers,
-            SUM(quantity) as total_items
-        FROM factorders
+            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.userID) as unique_customers,
+            SUM(o.quantity) as total_items
+        FROM factorders o
+        JOIN dimusers u ON o.userID = u.userID
     """
     
     conditions = []
     params = {}
     
     if start_date:
-        conditions.append("createdAt >= :start_date")
+        conditions.append("o.createdAt >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("createdAt <= :end_date")
+        conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
     
     query += build_where_clause(conditions)
     query += f" GROUP BY {date_format} ORDER BY period"
@@ -90,11 +105,13 @@ def total_orders_over_time():
 @app.route('/api/orders/total-orders-by-location', methods=['GET'])
 def orders_by_location():
     """Total Orders Per Location - How many orders do we receive in [LOCATION CATEGORY]?"""
-    location_type = request.args.get('type', 'city')  # city, country
+    location_type = request.args.get('location_type')  # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     
-    location_field = 'city' if location_type == 'city' else 'country' #defaults to city first
+    location_field = 'city' if location_type == 'city' else 'country' #defaults to country first
     
     conditions = []
     params = {}
@@ -105,6 +122,18 @@ def orders_by_location():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
 
     where_clause = build_where_clause(conditions) 
     query = f"""
@@ -114,7 +143,7 @@ def orders_by_location():
             COUNT(DISTINCT o.userID) as unique_customers,
             SUM(o.quantity) as total_items
         FROM factorders o 
-        JOIN DimUsers u ON o.userID = u.userID
+        JOIN dimusers u ON o.userID = u.userID
         {where_clause}
         GROUP BY u.{location_field}
         ORDER BY total_orders DESC
@@ -129,69 +158,48 @@ def orders_by_location():
 # ==============================================
 @app.route('/api/orders/total-orders-by-product-category', methods=['GET']) 
 def orders_by_product_category():
-    """Total Orders Per Product Category - Which product categories generate the most orders based on [CATEGORY]?"""
-    date_category = request.args.get('category')  # day, week, month, quarter, year or None
-    location_category = request.args.get('type')  # city, country or None
+    """Total Orders Per Product Category - Which product categories generate the most orders?"""
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
+
+    query = """
+        SELECT 
+            p.category,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            SUM(o.quantity) as total_quantity,
+            COUNT(DISTINCT o.userID) as unique_customers
+        FROM factorders o
+        JOIN dimproducts p ON o.productID = p.productID
+        JOIN dimusers u ON o.userID = u.userID
+    """
     
-    # Date format map
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
-    }
-
-    # Initialize variables
-    select_fields = ["p.category"]
-    group_by_fields = ["p.category"]
-
-    # Handle date grouping
-    if date_category in date_formats:
-        date_format = date_formats[date_category]
-        select_fields.append(f"{date_format} AS period")
-        group_by_fields.append("period")
-
-    # Handle location grouping
-    if location_category in ['city', 'country']:
-        location_field = f"u.{location_category}"
-        select_fields.append(f"{location_field} AS location")
-        group_by_fields.append("location")
-
-    # Common aggregation fields
-    select_fields.extend([
-        "COUNT(DISTINCT o.orderID) as total_orders",
-        "SUM(o.quantity) as total_quantity",
-        "COUNT(DISTINCT o.userID) as unique_customers"
-    ])
-
-    # Build WHERE clause
     conditions = []
     params = {}
-
+    
     if start_date:
         conditions.append("o.createdAt >= :start_date")
         params['start_date'] = start_date
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
-        
-    where_clause = build_where_clause(conditions)
-
-    # Final query
-    query = f"""
-        SELECT 
-            {', '.join(select_fields)}
-        FROM factorders o
-        JOIN dimproducts p ON o.productID = p.productID
-        JOIN dimusers u ON o.userID = u.userID
-        {where_clause}
-        GROUP BY {', '.join(group_by_fields)}
-        ORDER BY total_orders DESC
-    """
-
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+    
+    query += build_where_clause(conditions)
+    query += " GROUP BY p.category ORDER BY total_orders DESC"
+    
     try:
         results = execute_query(query, params)
         return jsonify({"success": True, "data": results})
@@ -202,9 +210,11 @@ def orders_by_product_category():
 @app.route('/api/orders/total-sales-over-time', methods=['GET'])
 def total_sales_over_time():
     """Total Orders Over Time - How many sales do we receive each [DATE CATEGORY]?"""
-    date_category = request.args.get('category', 'day')  # day, week, month, quarter, year
+    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     
     date_formats = {
         'day': "DATE(o.createdAt)",
@@ -214,16 +224,17 @@ def total_sales_over_time():
         'year': "YEAR(o.createdAt)"
     }
     
-    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
+    date_format = date_formats.get(date_category, date_formats['month']) # defaults to day
     
     query = f"""
         SELECT 
             {date_format} as period,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_items
         FROM factorders o
-        JOIN dimproducts p ON o.productID = p.productID 
+        JOIN dimproducts p ON o.productID = p.productID
+        JOIN dimusers u ON o.userID = u.userID
     """
     
     conditions = []
@@ -235,6 +246,18 @@ def total_sales_over_time():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
     
     query += build_where_clause(conditions)
     query += f" GROUP BY {date_format} ORDER BY period"
@@ -244,16 +267,18 @@ def total_sales_over_time():
         return jsonify({"success": True, "data": results})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-    
-# ===================================================================
+
+# ================================================
 @app.route('/api/orders/total-sales-by-location', methods=['GET'])
 def sales_by_location():
     """Total Sales Per Location - How many sales do we receive in [LOCATION CATEGORY]?"""
-    location_type = request.args.get('type', 'city')  # city, country
+    location_type = request.args.get('location_type')  # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
     
-    location_field = 'city' if location_type == 'city' else 'country' # defaults to city first
+    location_field = 'city' if location_type == 'city' else 'country' # defaults to country first
     
     conditions = []
     params = {}
@@ -264,20 +289,32 @@ def sales_by_location():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
 
     where_clause = build_where_clause(conditions) 
     query = f"""
        SELECT 
-            u.{location_field} as period,
+            u.{location_field} as location,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_items
         FROM factorders o
         JOIN dimusers u ON o.userID = u.userID
         JOIN dimproducts p ON o.productID = p.productID
         {where_clause}
         GROUP BY u.{location_field}
-        ORDER BY total_orders DESC
+        ORDER BY total_sales DESC
     """
 
     try:
@@ -287,26 +324,13 @@ def sales_by_location():
         return jsonify({"success": False, "error": str(e)}), 500
 
 # =====================================
-# working BUTTT need to make it so that if want lang na by date, date lang ung sa group by, loc lang, or neither, or both. 
-
-@app.route('/api/orders/total-sales-by-product-category/', methods=['GET']) 
+@app.route('/api/orders/total-sales-by-product-category', methods=['GET']) 
 def sales_by_product_category():
     """Total Sales Per Product Category - Which product categories generate the most sales?"""
-    date_category = request.args.get('category', 'day') # day, week, month, quarter, year
-    location_category = request.args.get('type', 'city')  # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
-    }
-
-    date_format = date_formats.get(date_category, date_formats['day']) # defaults to day
-    location_field = 'city' if location_category == 'city' else 'country'
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
 
     conditions = []
     params = {}
@@ -317,23 +341,33 @@ def sales_by_product_category():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
 
     where_clause = build_where_clause(conditions)
 
     query = f"""
         SELECT 
-            {date_format} as period,
-            u.{location_field} as location,
             p.category,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_items
         FROM factorders o
         JOIN dimproducts p ON o.productID = p.productID
-        JOIN dimusers u on o.userID = u.userID
+        JOIN dimusers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY p.category, period, location  # to adjust pa this
-        ORDER BY total_orders DESC
+        GROUP BY p.category
+        ORDER BY total_sales DESC
     """
     
     try:
@@ -348,13 +382,23 @@ def sales_by_product_category():
 @app.route('/api/customers/orders-by-demographics', methods=['GET'])
 def orders_by_demographics():
     """How many orders came from [GENDER] customers aged [AGE GROUP] in [LOCATION]"""
+    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     gender = request.args.get('gender') 
     age_group = request.args.get('age_group')
-    location_type = request.args.get('type', 'city') # city, country
+    location_type = request.args.get('location_type') # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    location_field = 'city' if location_type == 'city' else 'country'
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+
+    date_format = date_formats.get(date_category, date_formats['month'])
+    location_field = 'city' if location_type == 'city' else 'country' # defaults to country
 
     conditions = []
     params = {}
@@ -381,6 +425,7 @@ def orders_by_demographics():
     if start_date:
         conditions.append("o.createdAt >= :start_date")
         params['start_date'] = start_date
+
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
@@ -404,7 +449,7 @@ def orders_by_demographics():
         JOIN dimusers u ON o.userID = u.userID
         JOIN dimproducts p ON o.productID = p.productID
         {where_clause}
-        GROUP BY u.gender, age_group, u.{location_field} # adjust this 
+        GROUP BY u.gender, age_group, u.{location_field}, {date_format} 
         ORDER BY total_orders DESC
     """
     
@@ -418,10 +463,11 @@ def orders_by_demographics():
 @app.route('/api/customers/segments-revenue', methods=['GET'])
 def customer_segments_revenue():
     """Customer Segments - Which customer segment contributes the most to total revenue?"""
-    segment_type = request.args.get('segment', 'age')  # age, gender, location
-    location_type = request.args.get('type', 'city') # city, country
+    segment_type = request.args.get('segment')  # age, gender, location
+    location_type = request.args.get('location_type') # city, country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    
     
     location_field = 'city' if location_type == 'city' else 'country'
 
@@ -438,7 +484,7 @@ def customer_segments_revenue():
         """
     elif segment_type == 'gender':
         segment_field = "u.gender"
-    else:  # location
+    else: 
         segment_field = f"u.{location_field}"
     
     conditions = []
@@ -475,15 +521,352 @@ def customer_segments_revenue():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-
 # ========== PRODUCT REPORTS ==========
+@app.route('/api/products/top-performing', methods=['GET'])
+def top_performing_products(): #general, works also for lowest sales
+    """Top Selling Products - Which products are our top performers?"""
+    metric = request.args.get('metric')  # quantity or revenue
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    order = request.args.get('order', 'DESC') #DESC for top, ASC for zero sales || default should be DESC
+    
+    if metric == 'revenue':
+        select_field = "SUM(o.quantity * p.price) as total"
+        order_field = "total"
+    else:
+        select_field = "SUM(o.quantity) as total"
+        order_field = "total"
+    
+    conditions = []
+    params = {}
+
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+
+    where_clause = build_where_clause(conditions)
+
+    query = f"""
+        SELECT 
+            p.name,
+            p.category,
+            p.price,
+            {select_field}
+        FROM factorders o
+        RIGHT JOIN dimproducts p ON o.productID = p.productID
+        {where_clause}
+        GROUP BY p.productID, p.category, p.name, p.price
+        ORDER BY {order_field} {order}
+    """
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==============================================
+@app.route('/api/products/top-performing-per-category', methods=['GET'])
+def top_per_category(): #specific
+    metric = request.args.get('metric')  # 'quantity' or 'revenue'
+    category = request.args.get('product_category') 
+    # if no category was added in param, it shows all categories alphabetically, arranged in their respective ranks within 
+    top_n = request.args.get('top_n')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    order_by_expr = "SUM(o.quantity)" if metric == 'quantity' else "SUM(o.quantity * p.price)"
+
+    conditions = []
+    conditions2 = []
+    params = {
+        "start_date": start_date,
+        "end_date": end_date,
+        "category": category,
+        "top_n": top_n
+    }
+
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+
+    if category:
+        conditions.append("p.category = :category")
+        params['category'] = category
+
+    if top_n:
+        conditions2.append("category_rank <= :top_n")
+        params['top_n'] = int(top_n)
+
+    where_clause1 = build_where_clause(conditions)
+    where_clause2 = build_where_clause(conditions2)
+
+    query = f"""
+        WITH ranked_products AS (
+            SELECT 
+                p.name,
+                p.category,
+                p.price,
+                SUM(o.quantity) AS total_quantity,
+                SUM(o.quantity * p.price) AS total_revenue,
+                COUNT(DISTINCT o.orderID) AS order_count,
+                DENSE_RANK() OVER (
+                    PARTITION BY p.category
+                    ORDER BY {order_by_expr} DESC
+                ) AS category_rank
+            FROM factorders o
+            JOIN dimproducts p ON o.productID = p.productID
+            {where_clause1}
+            GROUP BY p.productID, p.name, p.category, p.price
+        )
+        SELECT 
+            name,
+            category,
+            price,
+            total_quantity,
+            total_revenue,
+            order_count
+        FROM ranked_products
+        {where_clause2} 
+        ORDER BY category, category_rank;
+    """
+
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==============================================
+@app.route('/api/products/category-performance', methods=['GET'])
+def category_performance():
+    """Price Trends - What's the average order value per Product Category per [DATE CATEGORY]"""
+    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    date_formats = {
+            'day': "DATE(o.createdAt)",
+            'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+            'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+            'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+            'year': "YEAR(o.createdAt)"
+        }
+
+    date_format = date_formats.get(date_category, date_formats['month'])
+
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            p.category,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            SUM(o.quantity) as total_quantity,
+            SUM(o.quantity * p.price) as total_revenue,
+            AVG(o.quantity * p.price) as avg_order_value,
+            AVG(p.price) as avg_product_price,
+            COUNT(DISTINCT o.userID) as unique_customers
+        FROM factorders o
+        JOIN dimproducts p ON o.productID = p.productID
+        GROUP BY p.category, {date_format}
+        ORDER BY total_revenue DESC
+    """
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    
+    try:
+        results = execute_query(query)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ==============================================
+@app.route('/api/products/sales-trends', methods=['GET'])
+def product_sales_trends():
+    """Product sales trends over time (unlimited for optimization testing)"""
+    date_category = request.args.get('time_granularity')
+    product_category = request.args.get('product_category', '')
+    
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['month'])
+    
+    conditions = []
+    params = {}
+    
+    if product_category:
+        conditions.append("p.category = :product_category")
+        params['product_category'] = product_category
+    
+    where_clause = build_where_clause(conditions)
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            p.category,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            SUM(o.quantity) as total_quantity,
+            SUM(o.quantity * p.price) as total_revenue,
+            AVG(p.price) as avg_price
+        FROM factorders o
+        JOIN dimproducts p ON o.productID = p.productID
+        {where_clause}
+        GROUP BY period, p.category
+        ORDER BY period, total_revenue DESC
+    """
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ========== RIDER REPORTS ==========
+@app.route('/api/riders/orders-per-rider', methods=['GET'])
+def orders_per_rider():
+    """Orders per Rider - How many orders were delivered by each rider/courier per [DATE CATEGORY]?"""
+    date_category = request.args.get('time_granularity')
+    courier_name = request.args.get('courier', '')
+    
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')", 
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
+    
+    conditions = []
+    params = {}
+    
+    if courier_name:
+        conditions.append("r.courierName = :courier_name")
+        params['courier_name'] = courier_name
+    
+    where_clause = build_where_clause(conditions)
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            r.courierName,
+            CONCAT(r.firstName, ' ', r.lastName) as rider_name,
+            r.vehicleType,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            SUM(o.quantity) as total_items,
+            COUNT(DISTINCT o.userID) as unique_customers
+        FROM factorders o
+        JOIN dimriders r ON o.riderID = r.riderID
+        {where_clause}
+        GROUP BY period, r.courierName, rider_name, r.vehicleType
+        ORDER BY period, total_orders DESC
+    """
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
+# ==============================================
+@app.route('/api/riders/delivery-performance', methods=['GET'])
+def delivery_performance():
+    """Delivery Time - Average delivery time by rider/courier"""
+    date_category = request.args.get('time_granularity')
+    location_type = request.args.get('location_type') #city or country
+    courier_name = request.args.get('courier', '')
+    
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')", 
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
+    location_field = 'city' if location_type == 'city' else 'country' # defaults to country
+    
+    conditions = ["o.deliveryDate IS NOT NULL"]
+    params = {}
+    
+    if courier_name:
+        conditions.append("r.courierName = :courier_name")
+        params['courier_name'] = courier_name
+    
+    where_clause = build_where_clause(conditions)
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            u.{location_field} as location,
+            r.courierName,
+            CONCAT(r.firstName, ' ', r.lastName) as rider_name,
+            r.vehicleType,
+            COUNT(DISTINCT o.orderID) as total_deliveries,
+            AVG(DATEDIFF(o.createdAt, o.deliveryDate)) as avg_delivery_days,
+            MIN(DATEDIFF(o.createdAt, o.deliveryDate)) as min_delivery_days,
+            MAX(DATEDIFF(o.createdAt, o.deliveryDate)) as max_delivery_days
+        FROM factorders o
+        JOIN dimriders r ON o.riderID = r.riderID
+        JOIN dimusers u ON o.userID = u.userID
+        {where_clause}
+        GROUP BY period, location, r.courierName, rider_name, r.vehicleType
+        ORDER BY period, avg_delivery_days ASC
+    """
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-# test
-
+# ==============================================
+@app.route('/api/riders/courier-comparison', methods=['GET'])
+def courier_comparison():
+    """Compare performance between different courier companies"""
+    query = """
+        SELECT 
+            r.courierName,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT r.riderID) as total_riders,
+            AVG(DATEDIFF(o.createdAt, o.deliveryDate)) as avg_delivery_time,
+            COUNT(DISTINCT o.userID) as served_customers,
+            SUM(o.quantity) as total_items_delivered
+        FROM factorders o
+        JOIN dimriders r ON o.riderID = r.riderID
+        WHERE o.deliveryDate IS NOT NULL
+        GROUP BY r.courierName
+        ORDER BY total_orders DESC
+    """
+    
+    try:
+        results = execute_query(query)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
