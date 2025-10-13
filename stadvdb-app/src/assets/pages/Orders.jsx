@@ -35,27 +35,7 @@ const OrdersAnalytics = () => {
   // Constants
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
   const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
-
-  // // Country and City Data
-  // const [countries, setCountries] = useState([
-  //   { id: 'us', name: 'United States' },
-  //   { id: 'ca', name: 'Canada' },
-  //   { id: 'uk', name: 'United Kingdom' },
-  //   { id: 'au', name: 'Australia' },
-  //   { id: 'jp', name: 'Japan' }
-  // ]);
-
-  // const citiesByCountry = {
-  //   us: [
-  //     'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-  //     'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose'
-  //   ],
-  //   ca: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa'],
-  //   uk: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool'],
-  //   au: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'],
-  //   jp: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo']
-  // };
-
+  
   const [countries, setCountries] = useState([]);
 
   // Tab states and data
