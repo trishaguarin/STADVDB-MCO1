@@ -562,6 +562,8 @@ const OrdersAnalytics = () => {
         end_date: endDate
       });
       if (selectedCategoryNames) topProductsParams.append('categories', selectedCategoryNames);
+      if (selectedCountryNames) topProductsParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
+      if (selectedCityNames) topProductsParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
       
       const topProductsRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing?${topProductsParams}`
@@ -578,7 +580,9 @@ const OrdersAnalytics = () => {
         start_date: startDate,
         end_date: endDate
       });
-      if (selectedCategoryNames) topPerCategoryParams.append('product_category', selectedCategoryNames);
+      if (selectedCategoryNames) topPerCategoryParams.append('categories', selectedCategoryNames);
+      if (selectedCountryNames) topPerCategoryParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
+      if (selectedCityNames) topPerCategoryParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
       
       const topPerCategoryRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing-per-category?${topPerCategoryParams}`
@@ -595,6 +599,8 @@ const OrdersAnalytics = () => {
         end_date: endDate
       });
       if (selectedCategoryNames) categoryPerfParams.append('categories', selectedCategoryNames);
+      if (selectedCountryNames) categoryPerfParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
+      if (selectedCityNames) categoryPerfParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
       
       const categoryPerfRes = await fetch(
         `${API_BASE_URL}/api/products/category-performance?${categoryPerfParams}`

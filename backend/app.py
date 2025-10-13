@@ -560,6 +560,8 @@ def top_performing_products(): #general, works also for lowest sales
     end_date = request.args.get('end_date')
     order = request.args.get('order', 'DESC') #DESC for top, ASC for zero sales || default should be DESC
     categories = request.args.get('categories')
+    countries = request.args.get('countries') 
+    cities = request.args.get('cities')  
     
     if metric == 'revenue':
         select_field = "SUM(o.quantity * p.price) as total"
@@ -585,6 +587,20 @@ def top_performing_products(): #general, works also for lowest sales
         conditions.append(f"p.category IN ({placeholders})")
         for i, category in enumerate(category_list):
             params[f'category{i}'] = category
+            
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
 
     where_clause = build_where_clause(conditions)
 
@@ -596,6 +612,7 @@ def top_performing_products(): #general, works also for lowest sales
             {select_field}
         FROM FactOrders o
         RIGHT JOIN DimProducts p ON o.productID = p.productID
+        LEFT JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY p.productID, p.category, p.name, p.price
         ORDER BY {order_field} {order}
@@ -617,6 +634,8 @@ def top_per_category(): #specific
     top_n = request.args.get('top_n')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  
+    cities = request.args.get('cities') 
 
     order_by_expr = "SUM(o.quantity)" if metric == 'quantity' else "SUM(o.quantity * p.price)"
 
@@ -646,6 +665,20 @@ def top_per_category(): #specific
         conditions.append(f"p.category IN ({placeholders})")
         for i, cat in enumerate(category_list):
             params[f'category{i}'] = cat
+            
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
 
     if top_n:
         conditions2.append("category_rank <= :top_n")
@@ -669,6 +702,7 @@ def top_per_category(): #specific
                 ) AS category_rank
             FROM FactOrders o
             JOIN DimProducts p ON o.productID = p.productID
+            LEFT JOIN DimUsers u ON o.userID = u.userID
             {where_clause1}
             GROUP BY p.productID, p.name, p.category, p.price
         )
@@ -698,32 +732,19 @@ def category_performance():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     categories = request.args.get('categories')
+    countries = request.args.get('countries') 
+    cities = request.args.get('cities')
 
     date_formats = {
-            'day': "DATE(o.createdAt)",
-            'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-            'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-            'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-            'year': "YEAR(o.createdAt)"
-        }
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
 
     date_format = date_formats.get(date_category, date_formats['month'])
 
-    query = f"""
-        SELECT 
-            {date_format} as period,
-            p.category,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_quantity,
-            SUM(o.quantity * p.price) as total_revenue,
-            AVG(o.quantity * p.price) as avg_order_value,
-            AVG(p.price) as avg_product_price,
-            COUNT(DISTINCT o.userID) as unique_customers
-        FROM FactOrders o
-        JOIN DimProducts p ON o.productID = p.productID
-        GROUP BY p.category, {date_format}
-        ORDER BY total_revenue DESC
-    """
     conditions = []
     params = {}
     
@@ -741,8 +762,42 @@ def category_performance():
         for i, category in enumerate(category_list):
             params[f'category{i}'] = category
     
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+
+    where_clause = build_where_clause(conditions)
+
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            p.category,
+            COUNT(DISTINCT o.orderID) as total_orders,
+            SUM(o.quantity) as total_quantity,
+            SUM(o.quantity * p.price) as total_revenue,
+            AVG(o.quantity * p.price) as avg_order_value,
+            AVG(p.price) as avg_product_price,
+            COUNT(DISTINCT o.userID) as unique_customers
+        FROM FactOrders o
+        JOIN DimProducts p ON o.productID = p.productID
+        LEFT JOIN DimUsers u ON o.userID = u.userID
+        {where_clause}
+        GROUP BY p.category, {date_format}
+        ORDER BY total_revenue DESC
+    """
+    
     try:
-        results = execute_query(query)
+        results = execute_query(query, params)  # Pass params here!
         return jsonify({"success": True, "data": results})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
