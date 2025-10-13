@@ -380,55 +380,79 @@ def sales_by_product_category():
 @app.route('/api/customers/orders-by-demographics', methods=['GET'])
 def orders_by_demographics():
     """How many orders came from [GENDER] customers aged [AGE GROUP] in [LOCATION]"""
-    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     gender = request.args.get('gender') 
-    age_group = request.args.get('age_group')
-    location_type = request.args.get('location_type') # city, country
+    age_groups = request.args.getlist('age_group')
+    location_type = request.args.get('type', 'country')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    countries = request.args.get('countries')
+    cities = request.args.get('cities') 
     
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
-    }
-
-    date_format = date_formats.get(date_category, date_formats['month'])
-    location_field = 'city' if location_type == 'city' else 'country' # defaults to country
+    location_field = 'city' if location_type == 'city' else 'country'
 
     conditions = []
     params = {}
     
     if gender:
-        conditions.append("u.gender = :gender")
-        params['gender'] = gender
+        gender_list = [g.strip() for g in gender.split(',')]
         
-    if age_group:
-        age_ranges = {
-            '18-24': (18, 24),
-            '25-34': (25, 34),
-            '35-44': (35, 44),
-            '45-54': (45, 54),
-            '55-64': (55, 64),
-            '65+': (65, 150)
-        }
-        if age_group in age_ranges:
-            min_age, max_age = age_ranges[age_group]
-            conditions.append("TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN :min_age AND :max_age")
-            params['min_age'] = min_age
-            params['max_age'] = max_age
+        if len(gender_list) > 1:
+            gender_placeholders = ','.join([f':gender{i}' for i in range(len(gender_list))])
+            conditions.append(f"LOWER(u.gender) IN ({gender_placeholders})")
+            for i, g in enumerate(gender_list):
+                params[f'gender{i}'] = g.lower()
+        else:
+            conditions.append("LOWER(u.gender) = LOWER(:gender)")
+            params['gender'] = gender_list[0]
+    
+    if age_groups:
+        age_conditions = []
+        for idx, age_group in enumerate(age_groups):
+            age_ranges = {
+                '18-24': (18, 24),
+                '25-34': (25, 34),
+                '35-44': (35, 44),
+                '45-54': (45, 54),
+                '55-64': (55, 64),
+                '65+': (65, 150)
+            }
+            if age_group in age_ranges:
+                min_age, max_age = age_ranges[age_group]
+                age_conditions.append(
+                    f"TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN :min_age_{idx} AND :max_age_{idx}"
+                )
+                params[f'min_age_{idx}'] = min_age
+                params[f'max_age_{idx}'] = max_age
+        
+        if age_conditions:
+            conditions.append(f"({' OR '.join(age_conditions)})")
     
     if start_date:
         conditions.append("o.createdAt >= :start_date")
         params['start_date'] = start_date
-
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+    
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country.strip()
+    
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city.strip()
 
     where_clause = build_where_clause(conditions)
+    
+    print(f"Conditions: {conditions}")
+    print(f"Params: {params}")
+    
     query = f"""
         SELECT 
             u.gender,
@@ -447,14 +471,19 @@ def orders_by_demographics():
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
         {where_clause}
-        GROUP BY u.gender, age_group, u.{location_field}, {date_format} 
+        GROUP BY u.gender, age_group, u.{location_field}
         ORDER BY total_orders DESC
     """
     
     try:
         results = execute_query(query, params)
+        print(f"Results count: {len(results)}")
+        if results:
+            print(f"First few results: {results[:3]}")
         return jsonify({"success": True, "data": results})
     except Exception as e:
+        print(f"ERROR: {str(e)}")
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
 # ===================================================

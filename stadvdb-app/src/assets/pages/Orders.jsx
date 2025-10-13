@@ -444,9 +444,11 @@ const OrdersAnalytics = () => {
         .filter(Boolean)
         .join(',');
 
+      const locationType = selectedCities.length > 0 ? 'city' : 'country';
+
       // Fetch Orders by Demographics
       const demographicsParams = new URLSearchParams({
-        type: 'country',
+        type: locationType,
         start_date: startDate,
         end_date: endDate
       });
