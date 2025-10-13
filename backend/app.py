@@ -559,6 +559,7 @@ def top_performing_products(): #general, works also for lowest sales
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     order = request.args.get('order', 'DESC') #DESC for top, ASC for zero sales || default should be DESC
+    categories = request.args.get('categories')
     
     if metric == 'revenue':
         select_field = "SUM(o.quantity * p.price) as total"
@@ -577,6 +578,13 @@ def top_performing_products(): #general, works also for lowest sales
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+        
+    if categories:
+        category_list = categories.split(',')
+        placeholders = ','.join([f':category{i}' for i in range(len(category_list))])
+        conditions.append(f"p.category IN ({placeholders})")
+        for i, category in enumerate(category_list):
+            params[f'category{i}'] = category
 
     where_clause = build_where_clause(conditions)
 
@@ -605,6 +613,7 @@ def top_per_category(): #specific
     metric = request.args.get('metric')  # 'quantity' or 'revenue'
     category = request.args.get('product_category') 
     # if no category was added in param, it shows all categories alphabetically, arranged in their respective ranks within 
+    categories = request.args.get('categories') # added this to handle multiple categories
     top_n = request.args.get('top_n')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -631,6 +640,12 @@ def top_per_category(): #specific
     if category:
         conditions.append("p.category = :category")
         params['category'] = category
+    elif categories: 
+        category_list = categories.split(',')
+        placeholders = ','.join([f':category{i}' for i in range(len(category_list))])
+        conditions.append(f"p.category IN ({placeholders})")
+        for i, cat in enumerate(category_list):
+            params[f'category{i}'] = cat
 
     if top_n:
         conditions2.append("category_rank <= :top_n")
@@ -682,6 +697,7 @@ def category_performance():
     date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    categories = request.args.get('categories')
 
     date_formats = {
             'day': "DATE(o.createdAt)",
@@ -717,6 +733,13 @@ def category_performance():
     if end_date:
         conditions.append("o.createdAt <= :end_date")
         params['end_date'] = end_date
+        
+    if categories:
+        category_list = categories.split(',')
+        placeholders = ','.join([f':category{i}' for i in range(len(category_list))])
+        conditions.append(f"p.category IN ({placeholders})")
+        for i, category in enumerate(category_list):
+            params[f'category{i}'] = category
     
     try:
         results = execute_query(query)
@@ -770,7 +793,27 @@ def product_sales_trends():
         return jsonify({"success": True, "data": results})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
+    
+# ==============================================   
+@app.route('/api/filters/categories', methods=['GET'])
+def get_categories():
+    """Get list of unique product categories"""
+    query = """
+        SELECT DISTINCT category
+        FROM DimProducts
+        WHERE category IS NOT NULL
+        ORDER BY category
+    """
+    
+    try:
+        results = execute_query(query)
+        categories = [{
+            'id': row['category'].lower().replace(' ', '_'),
+            'name': row['category']
+        } for row in results]
+        return jsonify({"success": True, "data": categories})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ========== RIDER REPORTS ==========
 @app.route('/api/riders/orders-per-rider', methods=['GET'])

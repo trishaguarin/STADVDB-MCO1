@@ -7,8 +7,8 @@ const OrdersAnalytics = () => {
   const API_BASE_URL = 'http://localhost:5000';
 
   // Date states
-  const [startDate, setStartDate] = useState('2025-01-01');
-  const [endDate, setEndDate] = useState('2025-01-31');
+  const [startDate, setStartDate] = useState('2025-09-01');
+  const [endDate, setEndDate] = useState('2025-09-30');
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
   
@@ -549,6 +549,11 @@ const OrdersAnalytics = () => {
         .filter(Boolean)
         .join(',');
 
+      const selectedCategoryNames = selectedCategories
+        .map(id => availableCategories.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(',');
+
       // Fetch Top Performing Products (by revenue)
       const topProductsParams = new URLSearchParams({
         metric: 'revenue',
@@ -556,12 +561,13 @@ const OrdersAnalytics = () => {
         start_date: startDate,
         end_date: endDate
       });
+      if (selectedCategoryNames) topProductsParams.append('categories', selectedCategoryNames);
+      
       const topProductsRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing?${topProductsParams}`
       );
       const topProductsData = await topProductsRes.json();
       if (topProductsData.success) {
-        // Limit to top 10 for display
         setTopProducts(topProductsData.data.slice(0, 10));
       }
 
@@ -572,6 +578,8 @@ const OrdersAnalytics = () => {
         start_date: startDate,
         end_date: endDate
       });
+      if (selectedCategoryNames) topPerCategoryParams.append('product_category', selectedCategoryNames);
+      
       const topPerCategoryRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing-per-category?${topPerCategoryParams}`
       );
@@ -586,6 +594,8 @@ const OrdersAnalytics = () => {
         start_date: startDate,
         end_date: endDate
       });
+      if (selectedCategoryNames) categoryPerfParams.append('categories', selectedCategoryNames);
+      
       const categoryPerfRes = await fetch(
         `${API_BASE_URL}/api/products/category-performance?${categoryPerfParams}`
       );
@@ -675,6 +685,9 @@ const OrdersAnalytics = () => {
       if (ageGroupDropdownRef.current && !ageGroupDropdownRef.current.contains(event.target)) {
         setShowAgeGroupDropdown(false);
       }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setShowCategoryDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -732,6 +745,22 @@ const OrdersAnalytics = () => {
     setSelectedCities([]);
   }
 }, [selectedCountries, countries]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/filters/categories`);
+        const data = await response.json();
+        if (data.success) {
+          setAvailableCategories(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
 
   // Fetch data on tab change
   useEffect(() => {
@@ -1056,7 +1085,46 @@ const OrdersAnalytics = () => {
             </div>
           </div>
 
-
+            {/* Category Dropdown */}
+            {activeTab === 'products' && (
+              <div className="filter-item" ref={categoryDropdownRef}>
+                <label className="filter-label">Product Categories</label>
+                <div className="dropdown-container">
+                  <div 
+                    className="dropdown-header"
+                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  >
+                    <span className={selectedCategories.length === 0 ? 'placeholder' : ''}>
+                      {selectedCategories.length === 0 
+                        ? 'Select...' 
+                        : selectedCategories.length <= 2 
+                          ? selectedCategories.map(id => 
+                              availableCategories.find(c => c.id === id)?.name || id
+                            ).join(', ')
+                          : `${selectedCategories.length} categories selected`}
+                    </span>
+                    <ChevronDown className={`dropdown-arrow ${showCategoryDropdown ? 'rotate' : ''}`} />
+                  </div>
+                  
+                  {showCategoryDropdown && (
+                    <div className="dropdown-options">
+                      {availableCategories.map(category => (
+                        <div 
+                          key={category.id}
+                          className={`dropdown-option ${selectedCategories.includes(category.id) ? 'selected' : ''}`}
+                          onClick={() => toggleSelection(category.id, selectedCategories, setSelectedCategories)}
+                        >
+                          <span className="checkbox">
+                            {selectedCategories.includes(category.id) && <Check size={14} />}
+                          </span>
+                          {category.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* Filter Button */}
             <button 
