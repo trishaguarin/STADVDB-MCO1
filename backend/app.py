@@ -1076,9 +1076,8 @@ def get_cities():
     
     try:
         results = execute_query(query, params)
-        # Transform to include id and name
         cities = [{
-            'id': row['city'].lower().replace(' ', '_'),
+            'id': f"{row['country']}_{row['city']}".lower().replace(' ', '_'),
             'name': row['city'],
             'country': row['country']
         } for row in results]
