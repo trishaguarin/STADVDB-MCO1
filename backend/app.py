@@ -396,14 +396,17 @@ def orders_by_demographics():
     if gender:
         gender_list = [g.strip() for g in gender.split(',')]
         
+        # Map Male/Female to M/F
+        gender_mapping = {'male': 'M', 'female': 'F', 'm': 'M', 'f': 'F'}
+        
         if len(gender_list) > 1:
             gender_placeholders = ','.join([f':gender{i}' for i in range(len(gender_list))])
-            conditions.append(f"LOWER(u.gender) IN ({gender_placeholders})")
+            conditions.append(f"u.gender IN ({gender_placeholders})")
             for i, g in enumerate(gender_list):
-                params[f'gender{i}'] = g.lower()
+                params[f'gender{i}'] = gender_mapping.get(g.lower(), g)
         else:
-            conditions.append("LOWER(u.gender) = LOWER(:gender)")
-            params['gender'] = gender_list[0]
+            conditions.append("u.gender = :gender")
+            params['gender'] = gender_mapping.get(gender_list[0].lower(), gender_list[0])
     
     if age_groups:
         age_conditions = []
