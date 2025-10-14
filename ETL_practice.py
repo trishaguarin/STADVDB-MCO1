@@ -2,13 +2,16 @@ import mysql.connector
 import pandas as pd
 from sqlalchemy import create_engine, text, Table, Column, Integer, Date, DateTime, MetaData, ForeignKey
 from sqlalchemy.types import VARCHAR, DECIMAL
+from sqlalchemy import PrimaryKeyConstraint
+
 
 # --- Extract ---
 source_conn = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="iloveariel",
-    database="stadvdb_source"
+    port="3310",
+    password="password",
+    database="faker"
 )
 
 cursor = source_conn.cursor()
@@ -35,23 +38,12 @@ print(df)
 
 # 1 - Rename stuff
 
-orders.rename(columns={'OrderId': 'orderID', 'userId': 'userID', 'deliveryRiderId': 'riderID'}, inplace=True)
+orders.rename(columns={'id': 'orderID', 'userId': 'userID', 'deliveryRiderId': 'riderID'}, inplace=True)
 order_items.rename(columns={'OrderId': 'orderID', 'ProductId': 'productID'}, inplace=True)
 products.rename(columns={'id': 'productID'}, inplace=True)
 users.rename(columns={'id': 'userID'}, inplace=True)
 riders.rename(columns={'id': 'riderID', 'courierId': 'courierID'}, inplace=True)
 couriers.rename(columns={'id': 'courierID', 'name': 'courierName'}, inplace=True)
-
-
-# orders: deliveryRiderId to riderID
-# orders: userId to userID
-# orderItems: productId to productID
-# products: id to productID
-# users: id to userID
-# riders: id to riderID
-# couriers: id to courierID
-# couriers: name to courierName
-
 
 # 2 - Drop Columns
 
@@ -59,11 +51,6 @@ orders.drop(columns=['orderNumber'], inplace=True, errors='ignore')
 products.drop(columns=['description', 'productCode'], inplace=True, errors='ignore')
 riders.drop(columns=['age', 'gender'], inplace=True, errors='ignore')
 users.drop(columns=['username'], inplace=True, errors='ignore')
-
-# Drop description (PRODUCT)
-# Drop createdAt and updatedAt (RIDERS)
-# Drop productCode (PRODUCTS)
-# Drop username (USERS)
 
 print("✅ Transformed data written back to database")
 
@@ -109,6 +96,7 @@ def normalize_gender(value):
     
 users['gender'] = users['gender'].apply(normalize_gender)
 
+print("\n Gender Normalized Successful.")
 
 # category -> products
 def normalize_category(value):
@@ -132,6 +120,7 @@ def normalize_category(value):
     return value_str.title()
 
 products['category'] = products['category'].apply(normalize_category)
+print("\n Category Normalized Successful.")
 
 def parse_date(date_str):
     if pd.isna(date_str):
@@ -144,11 +133,7 @@ def parse_date(date_str):
     return None
 
 users['dateOfBirth'] = users['dateOfBirth'].apply(parse_date)
-users['createdAt'] = pd.to_datetime(users['createdAt']).dt.date
-users['updatedAt'] = pd.to_datetime(users['updatedAt']).dt.date
 orders_merged['deliveryDate'] = orders_merged['deliveryDate'].apply(parse_date)
-products['createdAt'] = pd.to_datetime(products['createdAt']).dt.date
-products['updatedAt'] = pd.to_datetime(products['updatedAt']).dt.date
 
 cursor.close()
 source_conn.close()
@@ -156,7 +141,7 @@ print("🧹 Data transformed successfully!")
 
 # --- Connect to cloud Data Warehouse ---
 engine = create_engine(
-    "mysql+mysqlconnector://chrystel:Chrystel%401234@35.240.197.184:3306/stadvdb"
+    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
 )
 
 with engine.connect() as connection:
@@ -179,12 +164,13 @@ dim_users = Table('DimUsers', metadata,
     Column('zipCode', VARCHAR(10)),
     Column('phoneNumber', VARCHAR (255)),
     Column('gender', VARCHAR(1)),
-    Column('dateOfBirth', Date, nullable=True),
+    Column('dateOfBirth', Date),
     Column('createdAt', DateTime),
     Column('updatedAt', DateTime),
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
+print("\n DimUser datatypes changed.")
 
 # DimProducts table with Primary Key
 dim_products = Table('DimProducts', metadata,
@@ -197,6 +183,7 @@ dim_products = Table('DimProducts', metadata,
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
+print("\n DimProducts datatypes changed.")
 
 # DimRiders table with Primary Key
 dim_riders = Table('DimRiders', metadata,
@@ -205,27 +192,35 @@ dim_riders = Table('DimRiders', metadata,
     Column('lastName', VARCHAR(255)),
     Column('courierName', VARCHAR(255)),
     Column('vehicleType', VARCHAR(255)),
-    Column('age', Integer),
-    Column('gender', VARCHAR(1)),
-    mysql_engine='InnoDB',
-    mysql_charset='utf8mb4'
-)
-
-# ========== FACT TABLE ==========
-
-# FactOrders table with Primary Key and Foreign Keys
-fact_orders = Table('FactOrders', metadata,
-    Column('orderID', Integer, primary_key=True, autoincrement=False),
-    Column('userID', Integer, ForeignKey('DimUsers.userID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
-    Column('productID', Integer, ForeignKey('DimProducts.productID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
-    Column('riderID', Integer, ForeignKey('DimRiders.riderID', ondelete='SET NULL', onupdate='CASCADE'), nullable=True),
-    Column('quantity', Integer, nullable=False),
-    Column('deliveryDate', DateTime),
     Column('createdAt', DateTime),
     Column('updatedAt', DateTime),
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
+print("\n DimRiders datatypes changed.")
+
+# ========== FACT TABLE ==========
+
+# FactOrders table with Composite Primary Key - FIXED to handle multiple products per order
+fact_orders = Table('FactOrders', metadata,
+    Column('orderID', Integer, nullable=False),
+    Column('userID', Integer, ForeignKey('DimUsers.userID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
+    Column('productID', Integer, ForeignKey('DimProducts.productID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
+    Column('riderID', Integer, ForeignKey('DimRiders.riderID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
+    Column('deliveryDate', Date),
+    Column('quantity', Integer, nullable=False),
+    Column('createdAt', DateTime),
+    Column('updatedAt', DateTime),
+    mysql_engine='InnoDB',
+    mysql_charset='utf8mb4'
+)
+
+# Add composite primary key for orderID and productID
+fact_orders.append_constraint(
+    PrimaryKeyConstraint('orderID', 'productID', name='pk_factorders')
+)
+print("\n FactOrders datatypes changed.")
+
 
 print("🔨 Creating tables with schema definitions...")
 metadata.drop_all(engine)  # Drop existing tables
@@ -246,15 +241,6 @@ print("✅ DimRiders loaded")
 orders_merged.to_sql('FactOrders', engine, if_exists='append', index=False, chunksize=5000, method='multi')
 print("✅ FactOrders loaded")
 
-
-"""
-orders_merged.to_sql('FactOrders', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
-users.to_sql('DimUsers', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
-products.to_sql('DimProducts', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
-riders_merged.to_sql('DimRiders', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
-
-"""
 print("✅ Data loaded successfully to Cloud Data Warehouse!")
 
 engine.dispose()
-
