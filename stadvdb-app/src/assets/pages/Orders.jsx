@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
 import { Calendar, ChevronDown, X, Check } from 'lucide-react';
 import '../../styles/Orders.css';
@@ -38,6 +38,7 @@ const OrdersAnalytics = () => {
   const ageGroupDropdownRef = useRef(null);
   const countryDropdownRef = useRef(null);
   const categoryDropdownRef = useRef(null);
+  const isLoadingRef = useRef(false);
   
   // Constants
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
@@ -81,7 +82,7 @@ const OrdersAnalytics = () => {
     { title: 'Total Items', value: salesOverTime.reduce((sum, d) => sum + (d.total_items || 0), 0).toLocaleString() }
   ], [salesOverTime]);
 
-  const transformDemographicsData = (data) => {
+  const transformDemographicsData = useCallback((data) => {
     const locationMap = {};
     
     data.forEach(item => {
@@ -96,7 +97,36 @@ const OrdersAnalytics = () => {
     });
     
     return Object.values(locationMap);
-  };
+  }, []);
+
+  const transformedDemographicsData = useMemo(() => 
+    transformDemographicsData(ordersByDemographics),
+    [ordersByDemographics, transformDemographicsData]
+  );
+
+  const customerSegmentsByAgeData = useMemo(() => 
+    customerSegmentsByAge.map(item => ({
+      name: item.segment,
+      value: parseFloat(item.total_revenue) || 0
+    })),
+    [customerSegmentsByAge]
+  );
+
+  const customerSegmentsByGenderData = useMemo(() => 
+    customerSegmentsByGender.map(item => ({
+      name: item.segment,
+      value: parseFloat(item.total_revenue) || 0
+    })),
+    [customerSegmentsByGender]
+  );
+
+  const customerSegmentsByLocationData = useMemo(() => 
+    customerSegmentsByLocation.map(item => ({
+      name: item.segment,
+      value: parseFloat(item.total_revenue) || 0
+    })),
+    [customerSegmentsByLocation]
+  );
 
   const tabData = {
     orders: {
@@ -181,7 +211,7 @@ const OrdersAnalytics = () => {
           title: 'Orders by Demographics',
           description: 'How many orders came from each gender and age group in different locations?',
           dataKey: 'orders',
-          data: transformDemographicsData(ordersByDemographics),
+          data: transformedDemographicsData,
           xAxisKey: 'location',
           isStacked: true
         },
@@ -190,30 +220,21 @@ const OrdersAnalytics = () => {
           title: 'Customer Segments by Age Group',
           description: 'Which age group contributes the most to total revenue?',
           dataKey: 'value',
-          data: customerSegmentsByAge.map(item => ({
-            name: item.segment,
-            value: parseFloat(item.total_revenue) || 0
-          }))
+          data: customerSegmentsByAgeData
         },
         {
           type: 'pie',
           title: 'Customer Segments by Gender',
           description: 'Which gender contributes the most to total revenue?',
           dataKey: 'value',
-          data: customerSegmentsByGender.map(item => ({
-            name: item.segment,
-            value: parseFloat(item.total_revenue) || 0
-          }))
+          data: customerSegmentsByGenderData
         },
         {
           type: 'pie',
           title: 'Customer Segments by Location (Top 10)',
           description: 'Which locations contribute the most to total revenue?',
           dataKey: 'value',
-          data: customerSegmentsByLocation.map(item => ({
-            name: item.segment,
-            value: parseFloat(item.total_revenue) || 0
-          }))
+          data: customerSegmentsByLocationData
         }
       ]
     },
@@ -308,7 +329,9 @@ const OrdersAnalytics = () => {
   };
   
   // API fetch functions
-  const fetchOrdersData = async () => {
+  const fetchOrdersData = useCallback(async () => {
+    if (isLoadingRef.current) return; // Prevent duplicate calls
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const timeCategory = selectedTime.toLowerCase();
@@ -339,8 +362,9 @@ const OrdersAnalytics = () => {
       }
       
       // Fetch Orders By Location
+      const locationType = selectedCityNames ? 'city' : 'country';
       const ordersLocParams = new URLSearchParams({
-        type: 'country',
+        type: locationType,
         start_date: startDate,
         end_date: endDate
       });
@@ -355,7 +379,7 @@ const OrdersAnalytics = () => {
       // Fetch Orders By Product Category
       const ordersCatParams = new URLSearchParams({
         category: timeCategory,
-        type: 'country',
+        type: locationType,
         start_date: startDate,
         end_date: endDate
       });
@@ -370,10 +394,13 @@ const OrdersAnalytics = () => {
       console.error('Error fetching orders data:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, countries, availableCities]);
   
-  const fetchSalesData = async () => {
+  const fetchSalesData = useCallback(async () => {
+    if (isLoadingRef.current) return; // Prevent duplicate calls
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const timeCategory = selectedTime.toLowerCase();
@@ -404,8 +431,9 @@ const OrdersAnalytics = () => {
       }
       
       // Fetch Sales By Location
+      const locationType = selectedCityNames ? 'city' : 'country';
       const salesLocParams = new URLSearchParams({
-        type: 'country',
+        type: locationType,
         start_date: startDate,
         end_date: endDate
       });
@@ -420,7 +448,7 @@ const OrdersAnalytics = () => {
       // Fetch Sales By Product Category
       const salesCatParams = new URLSearchParams({
         category: timeCategory,
-        type: 'country',
+        type: locationType,
         start_date: startDate,
         end_date: endDate
       });
@@ -435,10 +463,13 @@ const OrdersAnalytics = () => {
       console.error('Error fetching sales data:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, countries, availableCities]);
 
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
+    if (isLoadingRef.current) return; // Prevent duplicate calls
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const selectedCountryNames = selectedCountries
@@ -531,10 +562,13 @@ const OrdersAnalytics = () => {
       console.error('Error fetching customer data:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [startDate, endDate, selectedGenders, selectedAgeGroups, selectedCountries, selectedCities, countries, availableCities]);
 
-  const fetchProductsData = async () => {
+  const fetchProductsData = useCallback(async () => {
+    if (isLoadingRef.current) return; // Prevent duplicate calls
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const timeCategory = selectedTime.toLowerCase();
@@ -614,10 +648,13 @@ const OrdersAnalytics = () => {
       console.error('Error fetching products data:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, selectedCategories, countries, availableCities, availableCategories]);
 
-  const fetchRiderData = async () => {
+  const fetchRiderData = useCallback(async () => {
+    if (isLoadingRef.current) return; // Prevent duplicate calls
+    isLoadingRef.current = true;
     setLoading(true);
     try {
       const timeCategory = selectedTime.toLowerCase();
@@ -631,6 +668,8 @@ const OrdersAnalytics = () => {
         .map(id => availableCities.find(c => c.id === id)?.name)
         .filter(Boolean)
         .join(',');
+
+      const locationType = selectedCityNames ? 'city' : 'country';
 
       // Fetch Orders per Rider
       const ordersPerRiderParams = new URLSearchParams({
@@ -652,7 +691,7 @@ const OrdersAnalytics = () => {
       // Fetch Delivery Performance
       const deliveryPerfParams = new URLSearchParams({
         time_granularity: timeCategory,
-        location_type: 'country',
+        location_type: locationType,
         start_date: startDate,
         end_date: endDate
       });
@@ -671,8 +710,9 @@ const OrdersAnalytics = () => {
       console.error('Error fetching rider data:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, countries, availableCities]);
 
   const currentTab = tabData[activeTab];
   const genders = ['Male', 'Female'];
@@ -779,7 +819,7 @@ const OrdersAnalytics = () => {
     fetchCategories();
   }, []);
 
-  // Fetch data on tab change
+  // Fetch data on tab change (only on initial mount and tab switch)
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrdersData();
@@ -803,7 +843,7 @@ const OrdersAnalytics = () => {
     );
   };
 
-  const getSelectedText = React.useCallback((items, isCountry = false) => {
+  const getSelectedText = useCallback((items, isCountry = false) => {
     if (items.length === 0) return 'Select...';
 
     if (isCountry) {
@@ -973,7 +1013,7 @@ const OrdersAnalytics = () => {
             )}
 
             {/* Gender Dropdown */}
-            {(activeTab === 'orders' || activeTab === 'users') && (
+            {activeTab === 'users' && (
               <div className="filter-item" ref={genderDropdownRef}>
                 <label className="filter-label">Gender</label>
                 <div className="dropdown-container">
@@ -1171,20 +1211,14 @@ const OrdersAnalytics = () => {
           <div className="tabs-container">
             <button
               className={`tab-button orders-tab ${activeTab === 'orders' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('orders');
-                fetchOrdersData();
-              }}
+              onClick={() => setActiveTab('orders')}
             >
               Orders Analytics
             </button>
 
             <button
               className={`tab-button sales-tab ${activeTab === 'sales' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('sales');
-                fetchSalesData();
-              }}
+              onClick={() => setActiveTab('sales')}
             >
               Sales Analytics
             </button>

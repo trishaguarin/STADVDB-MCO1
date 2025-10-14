@@ -214,11 +214,11 @@ def total_sales_over_time():
         'day': "DATE(o.createdAt)",
         'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
         'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))", # recheck how the quarter works
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
         'year': "YEAR(o.createdAt)"
     }
     
-    date_format = date_formats.get(date_category, date_formats['month']) # defaults to day
+    date_format = date_formats.get(date_category, date_formats['month']) 
     
     query = f"""
         SELECT 
