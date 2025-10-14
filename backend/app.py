@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, text
 from flask_cors import CORS
@@ -7,10 +8,11 @@ import traceback
 app = Flask(__name__)
 CORS(app)
 
+DATABASE_URL = os.environ.get('DATABASE_URL', "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb")
+
 # Database connection
-engine = create_engine(
-    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
-)
+engine = create_engine(DATABASE_URL)
+
 
 
 with engine.connect() as conn:
