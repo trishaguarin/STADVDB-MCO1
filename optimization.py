@@ -71,43 +71,87 @@ def analyze_performance():
     """
     
     test_queries = {
-        "Q1: Select by Primary Key (PRODUCTS)": 
-            "SELECT * FROM PRODUCTS WHERE productID = 'PROD001'",
+        "Q1: Total Orders Over Time": 
+            """ SELECT DATE_FORMAT(o.createdAt, '%Y-%m') as period, # check
+                COUNT(DISTINCT o.orderID) as total_orders,
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+            """,
+
+        "Q2: Total Sales Per Location": 
+            """ SELECT 
+                u.country as period,
+                SUM(o.quantity * p.price) as total_sales,
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Afghanistan'
+                GROUP BY u.country
+                ORDER BY total_sales DESC
+            """,
         
-        "Q2: Filter by Category (PRODUCTS)": 
-            "SELECT * FROM PRODUCTS WHERE category = 'Electronics' LIMIT 100",
+        "Q3: Total Sales per Product Category (per Time)": 
+            """ SELECT 
+                    p.category,
+                    SUM(o.quantity * p.price) as total_sales,
+                FROM FactOrders o
+                JOIN DimProducts p ON o.productID = p.productID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Philippines'
+                GROUP BY p.category
+                ORDER BY total_sales DESC
+                LIMIT 100""",
         
-        "Q3: Join Users and Orders": 
-            """SELECT u.userID, u.country, COUNT(o.orderID) as order_count
-               FROM USERS u 
-               LEFT JOIN ORDERS o ON u.userID = o.userID
-               GROUP BY u.userID, u.country
-               LIMIT 100""",
+        "Q4: Orders by demographics": 
+            """ SELECT 
+                u.gender,
+                CASE
+                    WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
+                    WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 25 AND 34 THEN '25-34'
+                    WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 35 AND 44 THEN '35-44'
+                    WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 45 AND 54 THEN '45-54'
+                    WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 55 AND 64 THEN '55-64'
+                    ELSE '65+'
+                END AS age_group,
+                u.country as location,
+                COUNT(DISTINCT o.orderID) as total_orders,
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Philippines' 
+                        AND u.gender = 'F' AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 
+                GROUP BY u.gender, age_group, u.country
+                ORDER BY total_orders DESC
+            """,
         
-        "Q4: Filter by Country and City (USERS)": 
-            "SELECT * FROM USERS WHERE country = 'USA' AND city = 'New York' LIMIT 100",
+        "Q5: Top-Selling Products Per Category": 
+            """ SELECT 
+                    p.name,
+                    p.category,
+                    SUM(o.quantity * p.price) as total
+                FROM FactOrders o
+                RIGHT JOIN DimProducts p ON o.productID = p.productID
+                LEFT JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Philippines'
+                GROUP BY p.productID, p.category
+                ORDER BY total DESC
+            """,
         
-        "Q5: Orders by Date Range": 
-            """SELECT * FROM ORDERS 
-               WHERE createdAt BETWEEN '2024-01-01' AND '2024-12-31'
-               LIMIT 100""",
-        
-        "Q6: Complex Join (Orders, Users, Products, Riders)":
-            """SELECT o.orderID, u.country, p.category, r.courierName
-               FROM ORDERS o
-               JOIN USERS u ON o.userID = u.userID
-               JOIN PRODUCTS p ON o.productID = p.productID
-               JOIN RIDERS r ON o.riderID = r.riderID
-               WHERE u.country = 'USA' AND p.category = 'Electronics'
-               LIMIT 50""",
-        
-        "Q7: Aggregation by Courier":
-            """SELECT r.courierName, COUNT(o.orderID) as delivery_count
-               FROM RIDERS r
-               LEFT JOIN ORDERS o ON r.riderID = o.riderID
-               GROUP BY r.courierName
-               ORDER BY delivery_count DESC
-               LIMIT 20"""
+        "Q6: Delivery Time":
+            """ SELECT 
+                    r.courierName as courier_name,
+                    COUNT(DISTINCT o.orderID) as total_deliveries,
+                    AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days,
+                    MIN(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as min_delivery_days,
+                    MAX(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as max_delivery_days
+                FROM FactOrders o
+                JOIN DimRiders r ON o.riderID = r.riderID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE r.courierName = 'JNT' AND o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Philippines'
+                GROUP BY r.courierName
+                ORDER BY avg_delivery_days
+                LIMIT 50
+            """
     }
     
     print("\n" + "="*80)
