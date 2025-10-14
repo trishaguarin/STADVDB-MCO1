@@ -762,25 +762,31 @@ const OrdersAnalytics = () => {
   useEffect(() => {
     const fetchCities = async () => {
       try {
-        let url = `${API_BASE_URL}/api/filters/cities`;
-
-        if (selectedCountries.length === 1) {
-          const selectedCountryName = countries.find(
-            c => c.id === selectedCountries[0]
-          )?.name;
-          if (selectedCountryName) {
-            url += `?country=${encodeURIComponent(selectedCountryName)}`;
-          }
-        }
-
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.success) {
-          // Deduplicate cities by name when multiple countries are selected
+        // When multiple countries are selected, fetch cities for each country
+        if (selectedCountries.length > 0) {
+          const selectedCountryNames = selectedCountries
+            .map(id => countries.find(c => c.id === id)?.name)
+            .filter(Boolean);
+          
+          if (selectedCountryNames.length === 0) return;
+          
+          // Fetch cities for all selected countries
+          const citiesPromises = selectedCountryNames.map(countryName =>
+            fetch(`${API_BASE_URL}/api/filters/cities?country=${encodeURIComponent(countryName)}`)
+              .then(res => res.json())
+          );
+          
+          const citiesResults = await Promise.all(citiesPromises);
+          
+          // Combine and deduplicate cities from all countries
+          const allCities = citiesResults.flatMap(result => 
+            result.success ? result.data : []
+          );
+          
           const uniqueCities = [];
           const seenCityNames = new Set();
           
-          for (const city of data.data) {
+          for (const city of allCities) {
             if (!seenCityNames.has(city.name)) {
               seenCityNames.add(city.name);
               uniqueCities.push(city);
@@ -788,20 +794,22 @@ const OrdersAnalytics = () => {
           }
           
           setAvailableCities(uniqueCities);
+          
+          // Clear selected cities that are no longer in the available list
+          setSelectedCities(prev => 
+            prev.filter(cityId => uniqueCities.some(c => c.id === cityId))
+          );
+        } else {
+          setAvailableCities([]);
+          setSelectedCities([]);
         }
       } catch (error) {
         console.error('Error fetching cities:', error);
       }
     };
 
-  // Fetch only when countries are selected
-  if (selectedCountries.length > 0) {
     fetchCities();
-  } else {
-    setAvailableCities([]);
-    setSelectedCities([]);
-  }
-}, [selectedCountries, countries]);
+  }, [selectedCountries, countries]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -1134,7 +1142,10 @@ const OrdersAnalytics = () => {
                       <span className="checkbox">
                         {selectedCities.includes(city.id) && <Check size={14} />}
                       </span>
-                      {city.name}
+                      <span>
+                        {city.name}
+                        {city.country && <span style={{ color: '#888', fontSize: '0.85em', marginLeft: '8px' }}>({city.country})</span>}
+                      </span>
                     </div>
                   ))}
                 </div>
