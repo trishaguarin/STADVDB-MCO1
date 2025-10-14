@@ -4,7 +4,7 @@ from typing import List, Tuple
 import pandas as pd
 
 engine = create_engine(
-    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
+    "mysql+mysqlconnector://chrystel:Chrystel%401234@34.142.244.237:3306/stadvdb"
 )
 
 def create_indexes():
