@@ -9,7 +9,7 @@ CORS(app)
 
 # Database connection
 engine = create_engine(
-    "mysql+mysqlconnector://trish:Trish%401234@35.240.197.184:3306/stadvdb"
+    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
 )
 
 
@@ -64,8 +64,6 @@ def total_orders_over_time():
         SELECT 
             {date_format} as period,
             COUNT(DISTINCT o.orderID) as total_orders,
-            COUNT(DISTINCT o.userID) as unique_customers,
-            SUM(o.quantity) as total_items
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
     """
@@ -140,8 +138,6 @@ def orders_by_location():
         SELECT 
             u.{location_field} as location,
             COUNT(DISTINCT o.orderID) as total_orders,
-            COUNT(DISTINCT o.userID) as unique_customers,
-            SUM(o.quantity) as total_items
         FROM FactOrders o 
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
@@ -168,8 +164,6 @@ def orders_by_product_category():
         SELECT 
             p.category,
             COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_quantity,
-            COUNT(DISTINCT o.userID) as unique_customers
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -230,8 +224,6 @@ def total_sales_over_time():
         SELECT 
             {date_format} as period,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_items
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -307,8 +299,6 @@ def sales_by_location():
        SELECT 
             u.{location_field} as period,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_items
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -360,8 +350,6 @@ def sales_by_product_category():
         SELECT 
             p.category,
             SUM(o.quantity * p.price) as total_sales,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_items
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -469,7 +457,6 @@ def orders_by_demographics():
             END AS age_group,
             u.{location_field} as location,
             COUNT(DISTINCT o.orderID) as total_orders,
-            COUNT(DISTINCT u.userID) as unique_customers
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -535,8 +522,6 @@ def customer_segments_revenue():
             {segment_field} as segment,
             SUM(o.quantity * p.price) as total_revenue,
             COUNT(DISTINCT o.orderID) as total_orders,
-            COUNT(DISTINCT u.userID) as unique_customers,
-            AVG(o.quantity * p.price) as avg_order_value
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -608,13 +593,12 @@ def top_performing_products(): #general, works also for lowest sales
         SELECT 
             p.name,
             p.category,
-            p.price,
             {select_field}
         FROM FactOrders o
         RIGHT JOIN DimProducts p ON o.productID = p.productID
         LEFT JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY p.productID, p.category, p.name, p.price
+        GROUP BY p.productID, p.category
         ORDER BY {order_field} {order}
     """
     
@@ -692,10 +676,8 @@ def top_per_category(): #specific
             SELECT 
                 p.name,
                 p.category,
-                p.price,
                 SUM(o.quantity) AS total_quantity,
                 SUM(o.quantity * p.price) AS total_revenue,
-                COUNT(DISTINCT o.orderID) AS order_count,
                 DENSE_RANK() OVER (
                     PARTITION BY p.category
                     ORDER BY {order_by_expr} DESC
@@ -704,15 +686,13 @@ def top_per_category(): #specific
             JOIN DimProducts p ON o.productID = p.productID
             LEFT JOIN DimUsers u ON o.userID = u.userID
             {where_clause1}
-            GROUP BY p.productID, p.name, p.category, p.price
+            GROUP BY p.productID, p.name, p.category
         )
         SELECT 
             name,
             category,
-            price,
             total_quantity,
             total_revenue,
-            order_count
         FROM ranked_products
         {where_clause2} 
         ORDER BY category, category_rank;
@@ -786,8 +766,6 @@ def category_performance():
             SUM(o.quantity) as total_quantity,
             SUM(o.quantity * p.price) as total_revenue,
             AVG(o.quantity * p.price) as avg_order_value,
-            AVG(p.price) as avg_product_price,
-            COUNT(DISTINCT o.userID) as unique_customers
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         LEFT JOIN DimUsers u ON o.userID = u.userID
@@ -922,8 +900,6 @@ def orders_per_rider():
         SELECT 
             r.courierName as courier_name,
             COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_items,
-            COUNT(DISTINCT o.userID) as unique_customers
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
@@ -957,9 +933,6 @@ def delivery_performance():
         'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
         'year': "YEAR(o.createdAt)"
     }
-    
-    date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
-    location_field = 'city' if location_type == 'city' else 'country' # defaults to country
     
     conditions = ["o.deliveryDate IS NOT NULL"]
     params = {}
