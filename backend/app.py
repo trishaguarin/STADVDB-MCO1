@@ -9,7 +9,7 @@ CORS(app)
 
 # Database connection
 engine = create_engine(
-    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
+    "mysql+mysqlconnector://chrystel:Chrystel%401234@34.142.244.237:3306/stadvdb"
 )
 
 
@@ -63,7 +63,7 @@ def total_orders_over_time():
     query = f"""
         SELECT 
             {date_format} as period,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
     """
@@ -137,7 +137,7 @@ def orders_by_location():
     query = f"""
         SELECT 
             u.{location_field} as location,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o 
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
@@ -163,7 +163,7 @@ def orders_by_product_category():
     query = """
         SELECT 
             p.category,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -223,7 +223,7 @@ def total_sales_over_time():
     query = f"""
         SELECT 
             {date_format} as period,
-            SUM(o.quantity * p.price) as total_sales,
+            SUM(o.quantity * p.price) as total_sales
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -298,7 +298,7 @@ def sales_by_location():
     query = f"""
        SELECT 
             u.{location_field} as period,
-            SUM(o.quantity * p.price) as total_sales,
+            SUM(o.quantity * p.price) as total_sales
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -349,7 +349,7 @@ def sales_by_product_category():
     query = f"""
         SELECT 
             p.category,
-            SUM(o.quantity * p.price) as total_sales,
+            SUM(o.quantity * p.price) as total_sales
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         JOIN DimUsers u ON o.userID = u.userID
@@ -456,7 +456,7 @@ def orders_by_demographics():
                 ELSE '65+'
             END AS age_group,
             u.{location_field} as location,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -521,7 +521,7 @@ def customer_segments_revenue():
         SELECT 
             {segment_field} as segment,
             SUM(o.quantity * p.price) as total_revenue,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -692,7 +692,7 @@ def top_per_category(): #specific
             name,
             category,
             total_quantity,
-            total_revenue,
+            total_revenue
         FROM ranked_products
         {where_clause2} 
         ORDER BY category, category_rank;
@@ -765,7 +765,7 @@ def category_performance():
             COUNT(DISTINCT o.orderID) as total_orders,
             SUM(o.quantity) as total_quantity,
             SUM(o.quantity * p.price) as total_revenue,
-            AVG(o.quantity * p.price) as avg_order_value,
+            AVG(o.quantity * p.price) as avg_order_value
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
         LEFT JOIN DimUsers u ON o.userID = u.userID
@@ -899,7 +899,7 @@ def orders_per_rider():
     query = f"""
         SELECT 
             r.courierName as courier_name,
-            COUNT(DISTINCT o.orderID) as total_orders,
+            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
