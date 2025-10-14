@@ -926,14 +926,6 @@ def delivery_performance():
     cities = request.args.get('cities')  # comma-separated list
     courier_name = request.args.get('courier', '')
     
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')", 
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
-    }
-    
     conditions = ["o.deliveryDate IS NOT NULL"]
     params = {}
     
