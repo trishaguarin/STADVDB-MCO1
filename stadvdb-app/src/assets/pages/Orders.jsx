@@ -736,7 +736,18 @@ const OrdersAnalytics = () => {
         const response = await fetch(url);
         const data = await response.json();
         if (data.success) {
-          setAvailableCities(data.data);
+          // Deduplicate cities by name when multiple countries are selected
+          const uniqueCities = [];
+          const seenCityNames = new Set();
+          
+          for (const city of data.data) {
+            if (!seenCityNames.has(city.name)) {
+              seenCityNames.add(city.name);
+              uniqueCities.push(city);
+            }
+          }
+          
+          setAvailableCities(uniqueCities);
         }
       } catch (error) {
         console.error('Error fetching cities:', error);
