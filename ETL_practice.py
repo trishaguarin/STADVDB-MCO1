@@ -1,7 +1,7 @@
 import mysql.connector
 import pandas as pd
-from sqlalchemy import create_engine, text
-
+from sqlalchemy import create_engine, text, Table, Column, Integer, Date, DateTime, MetaData, ForeignKey
+from sqlalchemy.types import VARCHAR, DECIMAL
 
 # --- Extract ---
 source_conn = mysql.connector.connect(
@@ -150,8 +150,6 @@ orders_merged['deliveryDate'] = orders_merged['deliveryDate'].apply(parse_date)
 products['createdAt'] = pd.to_datetime(products['createdAt']).dt.date
 products['updatedAt'] = pd.to_datetime(products['updatedAt']).dt.date
 
-
-
 cursor.close()
 source_conn.close()
 print("🧹 Data transformed successfully!")
@@ -164,16 +162,99 @@ engine = create_engine(
 with engine.connect() as connection:
     print("✅ Connected to Cloud Data Warehouse successfully!")
 
-print("🧩 FactOrders Preview:")
-print(orders_merged.head())
-print("Rows:", len(orders_merged))
+
+metadata = MetaData()
+
+# ========== DIMENSION TABLES ==========
+
+# DimUsers table with Primary Key
+dim_users = Table('DimUsers', metadata,
+    Column('userID', Integer, primary_key=True, autoincrement=False),
+    Column('firstName', VARCHAR(255)),
+    Column('lastName', VARCHAR(255)),
+    Column('address1', VARCHAR(255)),
+    Column('address2', VARCHAR(255)),
+    Column('city', VARCHAR(255)),
+    Column('country', VARCHAR(255)),
+    Column('zipCode', VARCHAR(10)),
+    Column('phoneNumber', VARCHAR (255)),
+    Column('gender', VARCHAR(1)),
+    Column('dateOfBirth', Date, nullable=True),
+    Column('createdAt', DateTime),
+    Column('updatedAt', DateTime),
+    mysql_engine='InnoDB',
+    mysql_charset='utf8mb4'
+)
+
+# DimProducts table with Primary Key
+dim_products = Table('DimProducts', metadata,
+    Column('productID', Integer, primary_key=True, autoincrement=False),
+    Column('name', VARCHAR(255)),
+    Column('category', VARCHAR(255)),
+    Column('price', DECIMAL(10, 2)),
+    Column('createdAt', DateTime),
+    Column('updatedAt', DateTime),
+    mysql_engine='InnoDB',
+    mysql_charset='utf8mb4'
+)
+
+# DimRiders table with Primary Key
+dim_riders = Table('DimRiders', metadata,
+    Column('riderID', Integer, primary_key=True, autoincrement=False),
+    Column('firstName', VARCHAR(255)),
+    Column('lastName', VARCHAR(255)),
+    Column('courierName', VARCHAR(255)),
+    Column('vehicleType', VARCHAR(255)),
+    Column('age', Integer),
+    Column('gender', VARCHAR(1)),
+    mysql_engine='InnoDB',
+    mysql_charset='utf8mb4'
+)
+
+# ========== FACT TABLE ==========
+
+# FactOrders table with Primary Key and Foreign Keys
+fact_orders = Table('FactOrders', metadata,
+    Column('orderID', Integer, primary_key=True, autoincrement=False),
+    Column('userID', Integer, ForeignKey('DimUsers.userID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
+    Column('productID', Integer, ForeignKey('DimProducts.productID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
+    Column('riderID', Integer, ForeignKey('DimRiders.riderID', ondelete='SET NULL', onupdate='CASCADE'), nullable=True),
+    Column('quantity', Integer, nullable=False),
+    Column('deliveryDate', DateTime),
+    Column('createdAt', DateTime),
+    Column('updatedAt', DateTime),
+    mysql_engine='InnoDB',
+    mysql_charset='utf8mb4'
+)
+
+print("🔨 Creating tables with schema definitions...")
+metadata.drop_all(engine)  # Drop existing tables
+metadata.create_all(engine)  # Create tables with proper schema
+print("✅ Tables created with Primary Keys and Foreign Keys")
+print("📦 Loading data to Cloud Data Warehouse...")
 
 
+users.to_sql('DimUsers', engine, if_exists='append', index=False, chunksize=5000, method='multi')
+print("✅ DimUsers loaded")
+
+products.to_sql('DimProducts', engine, if_exists='append', index=False, chunksize=5000, method='multi')
+print("✅ DimProducts loaded")
+
+riders_merged.to_sql('DimRiders', engine, if_exists='append', index=False, chunksize=5000, method='multi')
+print("✅ DimRiders loaded")
+
+orders_merged.to_sql('FactOrders', engine, if_exists='append', index=False, chunksize=5000, method='multi')
+print("✅ FactOrders loaded")
+
+
+"""
 orders_merged.to_sql('FactOrders', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
 users.to_sql('DimUsers', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
 products.to_sql('DimProducts', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
 riders_merged.to_sql('DimRiders', engine, if_exists='replace', index=False, chunksize=5000, method='multi')
 
+"""
 print("✅ Data loaded successfully to Cloud Data Warehouse!")
+
 engine.dispose()
 
