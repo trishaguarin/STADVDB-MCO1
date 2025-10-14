@@ -9,7 +9,7 @@ CORS(app)
 
 # Database connection
 engine = create_engine(
-    "mysql+mysqlconnector://chrystel:Chrystel%401234@34.142.244.237:3306/stadvdb"
+    "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
 )
 
 
@@ -66,6 +66,7 @@ def total_orders_over_time():
             COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
+        GROUP BY {date_format}
     """
     
     conditions = []
@@ -297,7 +298,7 @@ def sales_by_location():
     where_clause = build_where_clause(conditions) 
     query = f"""
        SELECT 
-            u.{location_field} as period,
+            u.{location_field} as location,
             SUM(o.quantity * p.price) as total_sales
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
