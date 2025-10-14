@@ -8,7 +8,7 @@ import traceback
 app = Flask(__name__)
 CORS(app)
 
-DATABASE_URL = os.environ.get('DATABASE_URL', "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb")
+DATABASE_URL = os.environ.get('DATABASE_URL', "mysql+mysqlconnector://chrystel:Chrystel%401234@34.142.244.237:3306/stadvdb")
 
 # Database connection
 engine = create_engine(DATABASE_URL)
