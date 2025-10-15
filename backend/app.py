@@ -75,7 +75,6 @@ def total_orders_over_time():
             COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
-        GROUP BY {date_format}
     """
     
     conditions = []
