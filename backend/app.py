@@ -6,12 +6,28 @@ from datetime import datetime
 import traceback
 
 app = Flask(__name__)
+
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*')
+
 if ALLOWED_ORIGINS.strip() == '*':
-    CORS(app)
+    CORS(app, 
+         resources={r"/*": {
+             "origins": "*",
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "expose_headers": ["Content-Type"],
+             "supports_credentials": False
+         }})
 else:
     origins = [o.strip() for o in ALLOWED_ORIGINS.split(',') if o.strip()]
-    CORS(app, resources={r"/*": {"origins": origins}})
+    CORS(app, 
+         resources={r"/*": {
+             "origins": origins,
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "expose_headers": ["Content-Type"],
+             "supports_credentials": True
+         }})
 
 DATABASE_URL = os.environ.get('DATABASE_URL', "mysql+mysqlconnector://chrystel:Chrystel%401234@34.142.244.237:3306/stadvdb")
 
