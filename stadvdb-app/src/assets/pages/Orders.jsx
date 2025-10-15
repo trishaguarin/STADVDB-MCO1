@@ -177,7 +177,7 @@ const OrdersAnalytics = () => {
           description: 'How many sales do we receive in each location?',
           dataKey: 'total_sales',
           data: salesByLocation,
-          xAxisKey: 'period'
+          xAxisKey: 'location'
         },
         {
           type: 'bar',
