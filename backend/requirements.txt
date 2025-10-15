@@ -1,6 +1,4 @@
-Flask==2.0.3
-Werkzeug==2.0.3
-mysql-connector-python==8.0.27
-SQLAlchemy==1.4.25
-Flask-CORS==3.0.10
-gunicorn==20.1.0
+Flask==2.3.0
+Flask-CORS==4.0.0
+SQLAlchemy==2.0.0
+mysql-connector-python==8.1.0
