@@ -69,7 +69,7 @@ def hello():
 @app.route('/api/orders/total-orders-over-time', methods=['GET'])
 def total_orders_over_time():
     """Total Orders Over Time - How many orders do we receive each [DATE CATEGORY]?"""
-    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
+    date_category = request.args.get('time_granularity') or request.args.get('category')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     countries = request.args.get('countries')  # comma-separated list
