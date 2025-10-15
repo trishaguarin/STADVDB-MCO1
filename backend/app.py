@@ -18,11 +18,13 @@ DATABASE_URL = os.environ.get('DATABASE_URL', "mysql+mysqlconnector://chrystel:C
 # Database connection
 engine = create_engine(DATABASE_URL)
 
-
-
-with engine.connect() as conn:
-    result = conn.execute(text("SELECT NOW()"))
-    print("Connection successful, current time:", result.fetchone()[0])
+try:
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT NOW()"))
+        print("✓ Database connection successful, current time:", result.fetchone()[0])
+except Exception as e:
+    print(f"⚠ Warning: Could not connect to database on startup: {str(e)}")
+    print("The app will start anyway. Check your database credentials and firewall settings.")
 
 
 def execute_query(query, params=None):
