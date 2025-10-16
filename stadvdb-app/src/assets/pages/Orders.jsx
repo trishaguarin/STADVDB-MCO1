@@ -349,7 +349,7 @@ const OrdersAnalytics = () => {
       
       // Fetch Orders Over Time
       const ordersTimeParams = new URLSearchParams({
-        category: timeCategory,
+        time_granularity: timeCategory,
         start_date: startDate,
         end_date: endDate
       });
@@ -418,7 +418,7 @@ const OrdersAnalytics = () => {
       
       // Fetch Sales Over Time
       const salesTimeParams = new URLSearchParams({
-        category: timeCategory,
+        time_granularity: timeCategory,
         start_date: startDate,
         end_date: endDate
       });
