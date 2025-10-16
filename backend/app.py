@@ -694,7 +694,7 @@ def top_per_category(): #specific
                 ) AS category_rank
             FROM FactOrders o
             JOIN DimProducts p ON o.productID = p.productID
-            LEFT JOIN DimUsers u ON o.userID = u.userID
+            INNER JOIN DimUsers u ON o.userID = u.userID
             {where_clause1}
             GROUP BY p.productID, p.name, p.category
         )
