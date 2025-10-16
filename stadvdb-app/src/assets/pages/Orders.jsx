@@ -30,7 +30,10 @@ const OrdersAnalytics = () => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
-  
+  const [selectedMetric, setSelectedMetric] = useState('revenue');
+  const [showMetricDropdown, setShowMetricDropdown] = useState(false);
+  const metricDropdownRef = useRef(null);
+    
   // Refs for dropdowns
   const cityDropdownRef = useRef(null);
   const genderDropdownRef = useRef(null);
@@ -43,6 +46,10 @@ const OrdersAnalytics = () => {
   // Constants
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
   const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+  const metricOptions = [
+  { value: 'revenue', label: 'Revenue' },
+  { value: 'quantity', label: 'Units Sold' }
+];
   
   const [countries, setCountries] = useState([]);
 
@@ -248,10 +255,10 @@ const OrdersAnalytics = () => {
             : '0'
         },
         { 
-          title: 'Top Product Revenue', 
+          title: selectedMetric === 'revenue' ? 'Top Product Revenue' : 'Top Product Units',
           value: topProducts.length > 0 
-            ? '$' + (topProducts[0]?.total || 0).toLocaleString()
-            : '$0'
+            ? (selectedMetric === 'revenue' ? '$' : '') + (topProducts[0]?.total || 0).toLocaleString()
+            : selectedMetric === 'revenue' ? '$0' : '0'
         },
         { 
           title: 'Categories', 
@@ -263,8 +270,8 @@ const OrdersAnalytics = () => {
       charts: [
         {
           type: 'bar',
-          title: 'Top 10 Products by Revenue',
-          description: 'Which products generate the most revenue?',
+          title: `Top 10 Products by ${selectedMetric === 'revenue' ? 'Revenue' : 'Units Sold'}`,
+          description: `Which products generate the most ${selectedMetric === 'revenue' ? 'revenue' : 'sales'}?`,
           dataKey: 'total',
           data: topProducts,
           xAxisKey: 'name'
@@ -272,13 +279,13 @@ const OrdersAnalytics = () => {
         {
           type: 'bar',
           title: 'Top Products Per Category',
-          description: 'Best performing products in each category',
-          dataKey: 'total_revenue',
+          description: `Best performing products in each category by ${selectedMetric === 'revenue' ? 'revenue' : 'units'}`,
+          dataKey: selectedMetric === 'revenue' ? 'total_revenue' : 'total_quantity',
           data: topProductsByCategory,
           xAxisKey: 'name'
         },
         {
-          type: 'line',
+          type: 'bar',
           title: 'Category Performance Over Time',
           description: `Average order value per category by ${selectedTime}`,
           dataKey: 'avg_order_value',
@@ -590,7 +597,7 @@ const OrdersAnalytics = () => {
 
       // Fetch Top Performing Products (by revenue)
       const topProductsParams = new URLSearchParams({
-        metric: 'revenue',
+        metric: selectedMetric,
         order: 'DESC',
         start_date: startDate,
         end_date: endDate
@@ -609,7 +616,7 @@ const OrdersAnalytics = () => {
 
       // Fetch Top Products Per Category (top 3 per category)
       const topPerCategoryParams = new URLSearchParams({
-        metric: 'revenue',
+        metric: selectedMetric,
         top_n: '3',
         start_date: startDate,
         end_date: endDate
@@ -734,13 +741,16 @@ const OrdersAnalytics = () => {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
         setShowCategoryDropdown(false);
       }
+      if (metricDropdownRef.current && !metricDropdownRef.current.contains(event.target)) {
+        setShowMetricDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+}, []);
   
   // fetch dropdown opttions
   useEffect(() => {
@@ -1186,6 +1196,44 @@ const OrdersAnalytics = () => {
                             {selectedCategories.includes(category.id) && <Check size={14} />}
                           </span>
                           {category.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Metric Dropdown */}
+            {activeTab === 'products' && (
+              <div className="filter-item" ref={metricDropdownRef}>
+                <label className="filter-label">Metric</label>
+                <div className="dropdown-container">
+                  <div 
+                    className="dropdown-header"
+                    onClick={() => setShowMetricDropdown(!showMetricDropdown)}
+                  >
+                    <span>
+                      {metricOptions.find(m => m.value === selectedMetric)?.label || 'Select...'}
+                    </span>
+                    <ChevronDown className={`dropdown-arrow ${showMetricDropdown ? 'rotate' : ''}`} />
+                  </div>
+                  
+                  {showMetricDropdown && (
+                    <div className="dropdown-options">
+                      {metricOptions.map(option => (
+                        <div 
+                          key={option.value}
+                          className={`dropdown-option ${selectedMetric === option.value ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedMetric(option.value);
+                            setShowMetricDropdown(false);
+                          }}
+                        >
+                          <span className="checkbox">
+                            {selectedMetric === option.value && <Check size={14} />}
+                          </span>
+                          {option.label}
                         </div>
                       ))}
                     </div>
