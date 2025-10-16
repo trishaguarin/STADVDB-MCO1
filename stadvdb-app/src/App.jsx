@@ -7,8 +7,7 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          <Route path="/Orders" element={<OrdersAnalytics/>} />
-          <Route path="/" element={<Navigate to="/Orders" replace />} />
+          <Route path="/" element={<OrdersAnalytics/>} />
         </Routes>
       </div>
     </Router>

@@ -39,9 +39,7 @@ try:
         result = conn.execute(text("SELECT NOW()"))
         print("✓ Database connection successful, current time:", result.fetchone()[0])
 except Exception as e:
-    print(f"⚠ Warning: Could not connect to database on startup: {str(e)}")
-    print("The app will start anyway. Check your database credentials and firewall settings.")
-
+    print(f"Warning: Could not connect to database on startup: {str(e)}")
 
 def execute_query(query, params=None):
     """Helper function to execute queries and handle errors"""
@@ -563,20 +561,12 @@ def customer_segments_revenue():
 @app.route('/api/products/top-performing', methods=['GET'])
 def top_performing_products(): #general, works also for lowest sales
     """Top Selling Products - Which products are our top performers?"""
-    metric = request.args.get('metric')  # quantity or revenue
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     order = request.args.get('order', 'DESC') #DESC for top, ASC for zero sales || default should be DESC
     categories = request.args.get('categories')
     countries = request.args.get('countries') 
     cities = request.args.get('cities')  
-    
-    if metric == 'revenue':
-        select_field = "SUM(o.quantity * p.price) as total"
-        order_field = "total"
-    else:
-        select_field = "SUM(o.quantity) as total"
-        order_field = "total"
     
     conditions = []
     params = {}
@@ -616,13 +606,13 @@ def top_performing_products(): #general, works also for lowest sales
         SELECT 
             p.name,
             p.category,
-            {select_field}
+            SUM(o.quantity * p.price) as total
         FROM FactOrders o
         RIGHT JOIN DimProducts p ON o.productID = p.productID
         INNER JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY p.name, p.category
-        ORDER BY {order_field} {order}
+        ORDER BY total {order}
     """
     
     try:
@@ -634,7 +624,6 @@ def top_performing_products(): #general, works also for lowest sales
 # ==============================================
 @app.route('/api/products/top-performing-per-category', methods=['GET'])
 def top_per_category(): #specific
-    metric = request.args.get('metric')  # 'quantity' or 'revenue'
     category = request.args.get('product_category') 
     # if no category was added in param, it shows all categories alphabetically, arranged in their respective ranks within 
     categories = request.args.get('categories') # added this to handle multiple categories
@@ -643,8 +632,6 @@ def top_per_category(): #specific
     end_date = request.args.get('end_date')
     countries = request.args.get('countries')  
     cities = request.args.get('cities') 
-
-    order_by_expr = "SUM(o.quantity)" if metric == 'quantity' else "SUM(o.quantity * p.price)"
 
     conditions = []
     conditions2 = []
@@ -703,7 +690,7 @@ def top_per_category(): #specific
                 SUM(o.quantity * p.price) AS total_revenue,
                 DENSE_RANK() OVER (
                     PARTITION BY p.category
-                    ORDER BY {order_by_expr} DESC
+                    ORDER BY SUM(o.quantity * p.price) DESC
                 ) AS category_rank
             FROM FactOrders o
             JOIN DimProducts p ON o.productID = p.productID
@@ -824,7 +811,7 @@ def get_categories():
 # ========== RIDER REPORTS ==========
 @app.route('/api/riders/orders-per-rider', methods=['GET'])
 def orders_per_rider():
-    """Orders per Rider - How many orders were delivered by each rider/courier per [DATE CATEGORY]?"""
+    """Orders per Rider - How many orders were delivered by courier per [DATE CATEGORY]?"""
     date_category = request.args.get('time_granularity')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
