@@ -226,7 +226,7 @@ def orders_by_product_category():
 # ========== SALES REPORTS ==========
 @app.route('/api/orders/total-sales-over-time', methods=['GET'])
 def total_sales_over_time():
-    """Total Orders Over Time - How many sales do we receive each [DATE CATEGORY]?"""
+    """Total Sales Over Time - How many sales do we receive each [DATE CATEGORY]?"""
     date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
