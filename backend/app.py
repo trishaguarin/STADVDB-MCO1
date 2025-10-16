@@ -546,7 +546,6 @@ def customer_segments_revenue():
         SELECT 
             {segment_field} as segment,
             SUM(o.quantity * p.price) as total_revenue,
-            COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
@@ -787,9 +786,6 @@ def category_performance():
         SELECT 
             {date_format} as period,
             p.category,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_quantity,
-            SUM(o.quantity * p.price) as total_revenue,
             AVG(o.quantity * p.price) as avg_order_value
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
