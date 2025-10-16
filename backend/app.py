@@ -620,7 +620,7 @@ def top_performing_products(): #general, works also for lowest sales
             {select_field}
         FROM FactOrders o
         RIGHT JOIN DimProducts p ON o.productID = p.productID
-        LEFT JOIN DimUsers u ON o.userID = u.userID
+        INNER JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY p.name, p.category
         ORDER BY {order_field} {order}
