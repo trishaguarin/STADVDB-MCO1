@@ -4,8 +4,11 @@ from sqlalchemy import create_engine, text, Table, Column, Integer, Date, DateTi
 from sqlalchemy.types import VARCHAR, DECIMAL
 from sqlalchemy import PrimaryKeyConstraint
 
+#####################################
+#           EXTRACT PHASE 
+#####################################
 
-# --- Extract ---
+# connect to local database
 source_conn = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -16,7 +19,7 @@ source_conn = mysql.connector.connect(
 
 cursor = source_conn.cursor()
 
-print("✅ Connected to source database")
+print("Now connected to source database!")
 
 orders = pd.read_sql("SELECT * FROM Orders", source_conn)
 order_items = pd.read_sql("SELECT * FROM OrderItems", source_conn)
@@ -25,7 +28,7 @@ products = pd.read_sql("SELECT * FROM Products", source_conn)
 users = pd.read_sql("SELECT * FROM Users", source_conn)
 couriers = pd.read_sql("SELECT * FROM Couriers", source_conn)
 
-# Sample Query Test
+# just to check if everything's working
 query = """
 SELECT * FROM Orders
 LIMIT 10;
@@ -34,10 +37,11 @@ df = pd.read_sql(query, source_conn)
 print(df)
 
 
-# --- Transform ---
+#####################################
+#          TRANSFORM PHASE 
+#####################################
 
-# 1 - Rename stuff
-
+# 1: Rename columns so they match acros tables
 orders.rename(columns={'id': 'orderID', 'userId': 'userID', 'deliveryRiderId': 'riderID'}, inplace=True)
 order_items.rename(columns={'OrderId': 'orderID', 'ProductId': 'productID'}, inplace=True)
 products.rename(columns={'id': 'productID'}, inplace=True)
@@ -45,45 +49,40 @@ users.rename(columns={'id': 'userID'}, inplace=True)
 riders.rename(columns={'id': 'riderID', 'courierId': 'courierID'}, inplace=True)
 couriers.rename(columns={'id': 'courierID', 'name': 'courierName'}, inplace=True)
 
-# 2 - Drop Columns
-
+# 2: Drop columns that aren't really needed
 orders.drop(columns=['orderNumber'], inplace=True, errors='ignore')
 products.drop(columns=['description', 'productCode'], inplace=True, errors='ignore')
 riders.drop(columns=['age', 'gender'], inplace=True, errors='ignore')
 users.drop(columns=['username'], inplace=True, errors='ignore')
 
-print("✅ Transformed data written back to database")
+print("Columns are renamed and cleaned up!")
 
-
-# 3 - Merge Tables for Fact Table
-
-### Orders - OrderItems
-
+# 3: Merge related tables to prepare fact and dim tables
+## combine orders and order items
 orders_merged = pd.merge(
     orders, order_items[['orderID', 'productID', 'quantity']],
     on='orderID',
     how='inner' 
 )
 
-print("\n Orders Merged Successful.", orders_merged.shape)
+print("\nOrders merged successfully! Shape: ", orders_merged.shape)
 print(orders_merged.head())
 
-### Riders - Couriers
-
+## combine riders and couriers
 riders_merged = pd.merge(
     riders, couriers[['courierID', 'courierName']],
     on='courierID',
     how = 'inner'
 )
 
+# drop courierID since we already have the name
 riders_merged.drop(columns=['courierID'], inplace= True)
 
-print("\n Riders Merged Successful.", riders_merged.shape)
+print("\nRiders merged successfully! Shape: ", riders_merged.shape)
 print(riders_merged.head())
 
-# 4 - Change formats and datatype
-
-# gender -> user 
+# 4:  Clean and normalize data
+## normalize gender for users
 def normalize_gender(value):
     if pd.isna(value):
         return None
@@ -93,12 +92,12 @@ def normalize_gender(value):
         return 'M'
     elif value_str.startswith("f"):
         return 'F'
+    return None
     
 users['gender'] = users['gender'].apply(normalize_gender)
+print("\n Gender normalized successfully!")
 
-print("\n Gender Normalized Successful.")
-
-# category -> products
+## normalize product categories
 def normalize_category(value):
     if pd.isna(value):
         return None
@@ -120,8 +119,9 @@ def normalize_category(value):
     return value_str.title()
 
 products['category'] = products['category'].apply(normalize_category)
-print("\n Category Normalized Successful.")
+print("\n Category normalized successfully!")
 
+# for handling date formats
 def parse_date(date_str):
     if pd.isna(date_str):
         return None
@@ -135,24 +135,29 @@ def parse_date(date_str):
 users['dateOfBirth'] = users['dateOfBirth'].apply(parse_date)
 orders_merged['deliveryDate'] = orders_merged['deliveryDate'].apply(parse_date)
 
+# closing connection to the source cb
 cursor.close()
 source_conn.close()
-print("🧹 Data transformed successfully!")
+print("Data transformation is now complete.")
 
-# --- Connect to cloud Data Warehouse ---
+
+#####################################
+#             LOAD PHASE 
+#####################################
+
+# connect to cloud database
 engine = create_engine(
     "mysql+mysqlconnector://megan:Megan%401234@34.142.244.237:3306/stadvdb"
 )
 
 with engine.connect() as connection:
-    print("✅ Connected to Cloud Data Warehouse successfully!")
-
+    print("Now connected to Cloud Data Warehouse!")
 
 metadata = MetaData()
 
-# ========== DIMENSION TABLES ==========
+# define tables for the data warehouse
 
-# DimUsers table with Primary Key
+# users table
 dim_users = Table('DimUsers', metadata,
     Column('userID', Integer, primary_key=True, autoincrement=False),
     Column('firstName', VARCHAR(255)),
@@ -170,9 +175,9 @@ dim_users = Table('DimUsers', metadata,
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
-print("\n DimUser datatypes changed.")
+print("\nUser dimension table ready.")
 
-# DimProducts table with Primary Key
+# products table
 dim_products = Table('DimProducts', metadata,
     Column('productID', Integer, primary_key=True, autoincrement=False),
     Column('name', VARCHAR(255)),
@@ -183,9 +188,9 @@ dim_products = Table('DimProducts', metadata,
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
-print("\n DimProducts datatypes changed.")
+print("\nProduct dimension table ready.")
 
-# DimRiders table with Primary Key
+# riders table
 dim_riders = Table('DimRiders', metadata,
     Column('riderID', Integer, primary_key=True, autoincrement=False),
     Column('firstName', VARCHAR(255)),
@@ -197,11 +202,9 @@ dim_riders = Table('DimRiders', metadata,
     mysql_engine='InnoDB',
     mysql_charset='utf8mb4'
 )
-print("\n DimRiders datatypes changed.")
+print("\nRiders dimension table ready.")
 
-# ========== FACT TABLE ==========
-
-# FactOrders table with Composite Primary Key - FIXED to handle multiple products per order
+# fact orders table (this connects everything)
 fact_orders = Table('FactOrders', metadata,
     Column('orderID', Integer, nullable=False),
     Column('userID', Integer, ForeignKey('DimUsers.userID', ondelete='CASCADE', onupdate='CASCADE'), nullable=False),
@@ -215,32 +218,31 @@ fact_orders = Table('FactOrders', metadata,
     mysql_charset='utf8mb4'
 )
 
-# Add composite primary key for orderID and productID
+# use composite primary key for orderID + productID
 fact_orders.append_constraint(
     PrimaryKeyConstraint('orderID', 'productID', name='pk_factorders')
 )
-print("\n FactOrders datatypes changed.")
+print("\nFact orders table ready.")
 
+# create all tables in the cloud db
+print("Creating tables in cloud database...")
+metadata.drop_all(engine)
+metadata.create_all(engine)
+print("Tables were created successfully!")
 
-print("🔨 Creating tables with schema definitions...")
-metadata.drop_all(engine)  # Drop existing tables
-metadata.create_all(engine)  # Create tables with proper schema
-print("✅ Tables created with Primary Keys and Foreign Keys")
-print("📦 Loading data to Cloud Data Warehouse...")
-
+print("Loading data...") # load the cleaned data to cloud
 
 users.to_sql('DimUsers', engine, if_exists='append', index=False, chunksize=5000, method='multi')
-print("✅ DimUsers loaded")
+print("Useer data loaded.")
 
 products.to_sql('DimProducts', engine, if_exists='append', index=False, chunksize=5000, method='multi')
-print("✅ DimProducts loaded")
+print("Product data loaded.")
 
 riders_merged.to_sql('DimRiders', engine, if_exists='append', index=False, chunksize=5000, method='multi')
-print("✅ DimRiders loaded")
+print("Rider data loaded.")
 
 orders_merged.to_sql('FactOrders', engine, if_exists='append', index=False, chunksize=5000, method='multi')
-print("✅ FactOrders loaded")
+print("Order data loaded.")
 
-print("✅ Data loaded successfully to Cloud Data Warehouse!")
-
-engine.dispose()
+engine.dispose() # clean up
+print("ETL process is done:) Connection closed.")
