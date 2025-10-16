@@ -804,53 +804,6 @@ def category_performance():
         return jsonify({"success": True, "data": results})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
-# ==============================================
-@app.route('/api/products/sales-trends', methods=['GET'])
-def product_sales_trends():
-    """Product sales trends over time (unlimited for optimization testing)"""
-    date_category = request.args.get('time_granularity')
-    product_category = request.args.get('product_category', '')
-    
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
-    }
-    
-    date_format = date_formats.get(date_category, date_formats['month'])
-    
-    conditions = []
-    params = {}
-    
-    if product_category:
-        conditions.append("p.category = :product_category")
-        params['product_category'] = product_category
-    
-    where_clause = build_where_clause(conditions)
-    
-    query = f"""
-        SELECT 
-            {date_format} as period,
-            p.category,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            SUM(o.quantity) as total_quantity,
-            SUM(o.quantity * p.price) as total_revenue,
-            AVG(p.price) as avg_price
-        FROM FactOrders o
-        JOIN DimProducts p ON o.productID = p.productID
-        {where_clause}
-        GROUP BY period, p.category
-        ORDER BY period, total_revenue DESC
-    """
-    
-    try:
-        results = execute_query(query, params)
-        return jsonify({"success": True, "data": results})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
     
 # ==============================================   
 @app.route('/api/filters/categories', methods=['GET'])
@@ -995,31 +948,6 @@ def delivery_performance():
     
     try:
         results = execute_query(query, params)
-        return jsonify({"success": True, "data": results})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# ==============================================
-@app.route('/api/riders/courier-comparison', methods=['GET'])
-def courier_comparison():
-    """Compare performance between different courier companies"""
-    query = """
-        SELECT 
-            r.courierName,
-            COUNT(DISTINCT o.orderID) as total_orders,
-            COUNT(DISTINCT r.riderID) as total_riders,
-            AVG(DATEDIFF(o.createdAt, o.deliveryDate)) as avg_delivery_time,
-            COUNT(DISTINCT o.userID) as served_customers,
-            SUM(o.quantity) as total_items_delivered
-        FROM FactOrders o
-        JOIN DimRiders r ON o.riderID = r.riderID
-        WHERE o.deliveryDate IS NOT NULL
-        GROUP BY r.courierName
-        ORDER BY total_orders DESC
-    """
-    
-    try:
-        results = execute_query(query)
         return jsonify({"success": True, "data": results})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
