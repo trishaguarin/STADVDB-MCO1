@@ -80,8 +80,28 @@ def analyze_performance():
                 WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01'
                 GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
             """,
+        
+        "Q2: Total Orders Over Time": 
+            """ SELECT 
+                    DATE_FORMAT(o.createdAt, '%Y-%m') as period,
+                    COUNT(DISTINCT o.orderID) as total_orders
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-06-01' AND '2025-10-01'
+                GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
+            """,
+        
+        "Q3: Total Orders Over Time": 
+            """ SELECT 
+                    DATE_FORMAT(o.createdAt, '%Y-%m') as period,
+                    COUNT(DISTINCT o.orderID) as total_orders
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
+                GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
+            """,
 
-        "Q2: Total Sales Per Location": 
+        "Q4: Total Sales Per Location": 
             """ SELECT 
                     u.country as location,
                     SUM(o.quantity * p.price) as total_sales
@@ -93,7 +113,32 @@ def analyze_performance():
                 ORDER BY total_sales DESC
             """,
         
-        "Q3: Total Sales per Product Category (per Time)": 
+
+        "Q5: Total Sales Per Location": 
+            """ SELECT 
+                    u.country as location,
+                    SUM(o.quantity * p.price) as total_sales
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'United Arab Emirates', 'Japan', 'Albania', 'Ethiopia')
+                GROUP BY u.country
+                ORDER BY total_sales DESC
+            """,
+
+
+        "Q6: Total Sales Per Location": 
+            """ SELECT 
+                    u.city as location,
+                    SUM(o.quantity * p.price) as total_sales
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
+                GROUP BY u.city
+                ORDER BY total_sales DESC
+            """,
+        "Q7: Total Sales per Product Category (per Time)": 
             """ SELECT 
                     p.category,
                     SUM(o.quantity * p.price) as total_sales
@@ -105,7 +150,31 @@ def analyze_performance():
                 ORDER BY total_sales DESC
             """,
         
-        "Q4: Orders by demographics": 
+        "Q8: Total Sales per Product Category (per Time)": 
+            """ SELECT 
+                    p.category,
+                    SUM(o.quantity * p.price) as total_sales
+                FROM FactOrders o
+                JOIN DimProducts p ON o.productID = p.productID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-06-01' AND '2025-10-01' AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'United Arab Emirates', 'Japan', 'Albania', 'Ethiopia')
+                GROUP BY p.category
+                ORDER BY total_sales DESC
+            """,
+        
+        "Q9: Total Sales per Product Category (per Time)": 
+            """ SELECT 
+                    p.category,
+                    SUM(o.quantity * p.price) as total_sales
+                FROM FactOrders o
+                JOIN DimProducts p ON o.productID = p.productID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
+                GROUP BY p.category
+                ORDER BY total_sales DESC
+            """,
+        
+        "Q10: Orders by demographics": 
             """ SELECT 
                     u.gender,
                     CASE
@@ -127,7 +196,55 @@ def analyze_performance():
                 ORDER BY total_orders DESC
             """,
         
-        "Q5: Top-Selling Products Per Category": 
+        "Q11: Orders by demographics": 
+            """ SELECT 
+                    u.gender,
+                    CASE
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 25 AND 34 THEN '25-34'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 35 AND 44 THEN '35-44'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 45 AND 54 THEN '45-54'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 55 AND 64 THEN '55-64'
+                        ELSE '65+'
+                    END AS age_group,
+                    u.country as location,
+                    COUNT(DISTINCT o.orderID) as total_orders
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'Albania', 'Canada', 'Australia', 'Japan')
+                AND u.gender IN ('M', 'F') 
+                AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 
+                GROUP BY u.gender, age_group, u.country
+                ORDER BY total_orders DESC
+            """,
+        
+        "Q12: Orders by demographics": 
+            """ SELECT 
+                    u.gender,
+                    CASE
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 25 AND 34 THEN '25-34'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 35 AND 44 THEN '35-44'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 45 AND 54 THEN '45-54'
+                        WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 55 AND 64 THEN '55-64'
+                        ELSE '65+'
+                    END AS age_group,
+                    u.country as location,
+                    COUNT(DISTINCT o.orderID) as total_orders
+                FROM FactOrders o
+                JOIN DimUsers u ON o.userID = u.userID
+                JOIN DimProducts p ON o.productID = p.productID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'Albania', 'Canada', 'Australia', 'Japan', 'Ethiopia', 'Brazil', 'United Arab Emirates')
+                AND u.gender IN ('M', 'F') 
+                AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 
+                GROUP BY u.gender, age_group, u.country
+                ORDER BY total_orders DESC
+            """,
+        
+        "Q13: Top-Selling Products Per Category": 
             """ SELECT 
                     p.name,
                     p.category,
@@ -140,7 +257,35 @@ def analyze_performance():
                 ORDER BY total DESC
             """,
         
-        "Q6: Delivery Time":
+        "Q14: Top-Selling Products Per Category": 
+            """ SELECT 
+                    p.name,
+                    p.category,
+                    SUM(o.quantity * p.price) as total
+                FROM FactOrders o
+                RIGHT JOIN DimProducts p ON o.productID = p.productID
+                LEFT JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'Albania', 'Canada', 'Australia', 'Japan', 'Ethiopia', 'Brazil', 'United Arab Emirates')
+                GROUP BY p.productID, p.category
+                ORDER BY total DESC
+            """,
+        
+        "Q15: Top-Selling Products Per Category": 
+            """ SELECT 
+                    p.name,
+                    p.category,
+                    SUM(o.quantity * p.price) as total
+                FROM FactOrders o
+                RIGHT JOIN DimProducts p ON o.productID = p.productID
+                LEFT JOIN DimUsers u ON o.userID = u.userID
+                WHERE o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
+                GROUP BY p.productID, p.category
+                ORDER BY total DESC
+            """,
+        
+        "Q16: Delivery Time":
             """ SELECT 
                     r.courierName as courier_name,
                     COUNT(DISTINCT o.orderID) as total_deliveries,
@@ -151,6 +296,42 @@ def analyze_performance():
                 JOIN DimRiders r ON o.riderID = r.riderID
                 JOIN DimUsers u ON o.userID = u.userID
                 WHERE r.courierName = 'JNT' AND o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' AND u.country = 'Philippines'
+                GROUP BY r.courierName
+                ORDER BY avg_delivery_days
+                LIMIT 50
+            """,
+        
+        "Q17: Delivery Time":
+            """ SELECT 
+                    r.courierName as courier_name,
+                    COUNT(DISTINCT o.orderID) as total_deliveries,
+                    AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days,
+                    MIN(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as min_delivery_days,
+                    MAX(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as max_delivery_days
+                FROM FactOrders o
+                JOIN DimRiders r ON o.riderID = r.riderID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE r.courierName IN ('JNT', 'FEDEZ', 'LBCD') 
+                AND o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.country = 'Philippines'
+                GROUP BY r.courierName
+                ORDER BY avg_delivery_days
+                LIMIT 50
+            """,
+        
+        "Q18: Delivery Time":
+            """ SELECT 
+                    r.courierName as courier_name,
+                    COUNT(DISTINCT o.orderID) as total_deliveries,
+                    AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days,
+                    MIN(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as min_delivery_days,
+                    MAX(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as max_delivery_days
+                FROM FactOrders o
+                JOIN DimRiders r ON o.riderID = r.riderID
+                JOIN DimUsers u ON o.userID = u.userID
+                WHERE r.courierName IN ('JNT', 'FEDEZ', 'LBCD') 
+                AND o.createdAt BETWEEN '2025-09-01' AND '2025-10-01' 
+                AND u.country IN ('Afghanistan', 'Philippines', 'Samoa', 'United Kingdom', 'Albania', 'Canada', 'Australia', 'Japan', 'Ethiopia', 'Brazil', 'United Arab Emirates')
                 GROUP BY r.courierName
                 ORDER BY avg_delivery_days
                 LIMIT 50
