@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, text, Table, Column, Integer, Date, DateTi
 from sqlalchemy.types import VARCHAR, DECIMAL
 from sqlalchemy import PrimaryKeyConstraint
 
-
-############ EXTRACT PHASE ############
+#####################################
+#           EXTRACT PHASE 
+#####################################
 
 # connect to local database
 source_conn = mysql.connector.connect(
@@ -36,10 +37,11 @@ df = pd.read_sql(query, source_conn)
 print(df)
 
 
-############ TRANSFORM PHASE ############
+#####################################
+#          TRANSFORM PHASE 
+#####################################
 
 # 1: Rename columns so they match acros tables
-
 orders.rename(columns={'id': 'orderID', 'userId': 'userID', 'deliveryRiderId': 'riderID'}, inplace=True)
 order_items.rename(columns={'OrderId': 'orderID', 'ProductId': 'productID'}, inplace=True)
 products.rename(columns={'id': 'productID'}, inplace=True)
@@ -48,7 +50,6 @@ riders.rename(columns={'id': 'riderID', 'courierId': 'courierID'}, inplace=True)
 couriers.rename(columns={'id': 'courierID', 'name': 'courierName'}, inplace=True)
 
 # 2: Drop columns that aren't really needed
-
 orders.drop(columns=['orderNumber'], inplace=True, errors='ignore')
 products.drop(columns=['description', 'productCode'], inplace=True, errors='ignore')
 riders.drop(columns=['age', 'gender'], inplace=True, errors='ignore')
@@ -56,9 +57,7 @@ users.drop(columns=['username'], inplace=True, errors='ignore')
 
 print("Columns are renamed and cleaned up!")
 
-
 # 3: Merge related tables to prepare fact and dim tables
-
 ## combine orders and order items
 orders_merged = pd.merge(
     orders, order_items[['orderID', 'productID', 'quantity']],
@@ -83,7 +82,6 @@ print("\nRiders merged successfully! Shape: ", riders_merged.shape)
 print(riders_merged.head())
 
 # 4:  Clean and normalize data
-
 ## normalize gender for users
 def normalize_gender(value):
     if pd.isna(value):
@@ -143,7 +141,9 @@ source_conn.close()
 print("Data transformation is now complete.")
 
 
-############ LOAD PHASE ############
+#####################################
+#             LOAD PHASE 
+#####################################
 
 # connect to cloud database
 engine = create_engine(
