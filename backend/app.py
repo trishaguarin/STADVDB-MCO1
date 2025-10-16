@@ -789,7 +789,7 @@ def category_performance():
             AVG(o.quantity * p.price) as avg_order_value
         FROM FactOrders o
         JOIN DimProducts p ON o.productID = p.productID
-        LEFT JOIN DimUsers u ON o.userID = u.userID
+        INNER JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY p.category, {date_format}
         ORDER BY total_revenue DESC
