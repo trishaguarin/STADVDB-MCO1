@@ -889,7 +889,6 @@ def orders_per_rider():
 def delivery_performance():
     """Delivery Time - Average delivery time by rider/courier"""
     date_category = request.args.get('time_granularity')
-    location_type = request.args.get('location_type') #city or country
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     countries = request.args.get('countries')  # comma-separated list
@@ -904,7 +903,6 @@ def delivery_performance():
     }
     
     date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
-    location_field = 'city' if location_type == 'city' else 'country'
 
     conditions = ["o.deliveryDate IS NOT NULL"]
     params = {}
@@ -934,14 +932,13 @@ def delivery_performance():
     query = f"""
         SELECT 
             {date_format} as period,
-            u.{location_field} as location,
             r.courierName as courier_name,
             AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY {date_format}, u.{location_field}, r.courierName
+        GROUP BY {date_format}, r.courierName
         ORDER BY avg_delivery_days
     """
     
