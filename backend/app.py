@@ -545,7 +545,7 @@ def customer_segments_revenue():
     query = f"""
         SELECT 
             {segment_field} as segment,
-            SUM(o.quantity * p.price) as total_revenue,
+            SUM(o.quantity * p.price) as total_revenue
         FROM FactOrders o
         JOIN DimUsers u ON o.userID = u.userID
         JOIN DimProducts p ON o.productID = p.productID
