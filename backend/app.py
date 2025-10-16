@@ -510,7 +510,6 @@ def customer_segments_revenue():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    
     location_field = 'city' if location_type == 'city' else 'country'
 
     if segment_type == 'age':
@@ -895,8 +894,18 @@ def delivery_performance():
     end_date = request.args.get('end_date')
     countries = request.args.get('countries')  # comma-separated list
     cities = request.args.get('cities')  # comma-separated list
-    courier_name = request.args.get('courier', '')
     
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')", 
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
+    location_field = 'city' if location_type == 'city' else 'country'
+
     conditions = ["o.deliveryDate IS NOT NULL"]
     params = {}
     
@@ -918,24 +927,21 @@ def delivery_performance():
         conditions.append(f"u.city IN ({placeholders})")
         for i, city in enumerate(city_list):
             params[f'city{i}'] = city
-    if courier_name:
-        conditions.append("r.courierName = :courier_name")
-        params['courier_name'] = courier_name
+
     
     where_clause = build_where_clause(conditions)
     
     query = f"""
         SELECT 
+            {date_format} as period,
+            u.{location_field} as location,
             r.courierName as courier_name,
-            COUNT(DISTINCT o.orderID) as total_deliveries,
-            AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days,
-            MIN(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as min_delivery_days,
-            MAX(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as max_delivery_days
+            AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY r.courierName
+        GROUP BY {date_format}, u.{location_field}, r.courierName
         ORDER BY avg_delivery_days
     """
     
