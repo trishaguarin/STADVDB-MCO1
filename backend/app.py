@@ -776,7 +776,7 @@ def category_performance():
         INNER JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY p.category, {date_format}
-        ORDER BY total_revenue DESC
+        ORDER BY period, p.category
     """
     
     try:
