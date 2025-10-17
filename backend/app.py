@@ -122,6 +122,166 @@ def total_orders_over_time():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ========================================
+@app.route('/api/orders/total-orders-by-location', methods=['GET'])
+def orders_by_location():
+    """Total Orders Per Location - How many orders do we receive in [LOCATION CATEGORY]?"""
+    location_type = request.args.get('type', 'country')  # city, country
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
+    
+    location_field = 'city' if location_type == 'city' else 'country' #defaults to country first
+    
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+
+    where_clause = build_where_clause(conditions) 
+    query = f"""
+        SELECT 
+            u.{location_field} as location,
+            COUNT(DISTINCT o.orderID) as total_orders
+        FROM FactOrders o 
+        JOIN DimUsers u ON o.userID = u.userID
+        {where_clause}
+        GROUP BY u.{location_field}
+        ORDER BY total_orders DESC
+    """
+
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
+# ==============================================
+@app.route('/api/orders/total-orders-by-product-category', methods=['GET']) 
+def orders_by_product_category():
+    """Total Orders Per Product Category - Which product categories generate the most orders?"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
+
+    query = """
+        SELECT 
+            p.category,
+            COUNT(DISTINCT o.orderID) as total_orders
+        FROM FactOrders o
+        JOIN DimProducts p ON o.productID = p.productID
+        JOIN DimUsers u ON o.userID = u.userID
+    """
+    
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+    
+    query += build_where_clause(conditions)
+    query += " GROUP BY p.category ORDER BY total_orders DESC"
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ========== SALES REPORTS ==========
+@app.route('/api/orders/total-sales-over-time', methods=['GET'])
+def total_sales_over_time():
+    """Total Orders Over Time - How many sales do we receive each [DATE CATEGORY]?"""
+    date_category = request.args.get('time_granularity')  # day, week, month, quarter, year
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
+    
+    date_formats = {
+        'day': "DATE(o.createdAt)",
+        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+        'year': "YEAR(o.createdAt)"
+    }
+    
+    date_format = date_formats.get(date_category, date_formats['month']) 
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            SUM(o.quantity * p.price) as total_sales
+        FROM FactOrders o
+        JOIN DimProducts p ON o.productID = p.productID
+        JOIN DimUsers u ON o.userID = u.userID
+    """
+    
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+    
+    query += build_where_clause(conditions)
+    query += f" GROUP BY {date_format} ORDER BY period"
+    
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ================================================
 @app.route('/api/orders/total-sales-by-location', methods=['GET'])
@@ -170,6 +330,57 @@ def sales_by_location():
         ORDER BY total_sales DESC
     """
 
+    try:
+        results = execute_query(query, params)
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# =====================================
+@app.route('/api/orders/total-sales-by-product-category', methods=['GET']) 
+def sales_by_product_category():
+    """Total Sales Per Product Category - Which product categories generate the most sales?"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    countries = request.args.get('countries')  # comma-separated list
+    cities = request.args.get('cities')  # comma-separated list
+
+    conditions = []
+    params = {}
+    
+    if start_date:
+        conditions.append("o.createdAt >= :start_date")
+        params['start_date'] = start_date
+    if end_date:
+        conditions.append("o.createdAt <= :end_date")
+        params['end_date'] = end_date
+    if countries:
+        country_list = countries.split(',')
+        placeholders = ','.join([f':country{i}' for i in range(len(country_list))])
+        conditions.append(f"u.country IN ({placeholders})")
+        for i, country in enumerate(country_list):
+            params[f'country{i}'] = country
+    if cities:
+        city_list = cities.split(',')
+        placeholders = ','.join([f':city{i}' for i in range(len(city_list))])
+        conditions.append(f"u.city IN ({placeholders})")
+        for i, city in enumerate(city_list):
+            params[f'city{i}'] = city
+
+    where_clause = build_where_clause(conditions)
+
+    query = f"""
+        SELECT 
+            p.category,
+            SUM(o.quantity * p.price) as total_sales
+        FROM FactOrders o
+        JOIN DimProducts p ON o.productID = p.productID
+        JOIN DimUsers u ON o.userID = u.userID
+        {where_clause}
+        GROUP BY p.category
+        ORDER BY total_sales DESC
+    """
+    
     try:
         results = execute_query(query, params)
         return jsonify({"success": True, "data": results})
