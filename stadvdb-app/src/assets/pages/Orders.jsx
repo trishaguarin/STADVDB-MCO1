@@ -27,12 +27,7 @@ const OrdersAnalytics = () => {
   const [topProducts, setTopProducts] = useState([]);
   const [topProductsByCategory, setTopProductsByCategory] = useState([]);
   const [categoryPerformance, setCategoryPerformance] = useState([]);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [selectedMetric, setSelectedMetric] = useState('revenue');
-  const [showMetricDropdown, setShowMetricDropdown] = useState(false);
-  const metricDropdownRef = useRef(null);
+  const [topN, setTopN] = useState(3); //default top 3 categories
     
   // Refs for dropdowns
   const cityDropdownRef = useRef(null);
@@ -40,16 +35,11 @@ const OrdersAnalytics = () => {
   const timeDropdownRef = useRef(null);
   const ageGroupDropdownRef = useRef(null);
   const countryDropdownRef = useRef(null);
-  const categoryDropdownRef = useRef(null);
   const isLoadingRef = useRef(false);
   
   // Constants
   const timeOptions = ['Year', 'Quarter', 'Month', 'Day'];
   const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
-  const metricOptions = [
-  { value: 'revenue', label: 'Revenue' },
-  { value: 'quantity', label: 'Units Sold' }
-];
   
   const [countries, setCountries] = useState([]);
 
@@ -255,11 +245,11 @@ const OrdersAnalytics = () => {
             : '0'
         },
         { 
-          title: selectedMetric === 'revenue' ? 'Top Product Revenue' : 'Top Product Units',
+          title: 'Top Product Revenue',
           value: topProducts.length > 0 
-            ? (selectedMetric === 'revenue' ? '$' : '') + (topProducts[0]?.total || 0).toLocaleString()
-            : selectedMetric === 'revenue' ? '$0' : '0'
-        },
+            ? '$' + (topProducts[0]?.total || 0).toLocaleString()
+            : '$0'
+        },    
         { 
           title: 'Categories', 
           value: topProductsByCategory.length > 0
@@ -270,17 +260,17 @@ const OrdersAnalytics = () => {
       charts: [
         {
           type: 'bar',
-          title: `Top 10 Products by ${selectedMetric === 'revenue' ? 'Revenue' : 'Units Sold'}`,
-          description: `Which products generate the most ${selectedMetric === 'revenue' ? 'revenue' : 'sales'}?`,
+          title: 'Top 10 Products by Revenue',
+          description: 'Which products generate the most revenue?',
           dataKey: 'total',
           data: topProducts,
           xAxisKey: 'name'
         },
         {
           type: 'bar',
-          title: 'Top Products Per Category',
-          description: `Best performing products in each category by ${selectedMetric === 'revenue' ? 'revenue' : 'units'}`,
-          dataKey: selectedMetric === 'revenue' ? 'total_revenue' : 'total_quantity',
+          title: 'Top ${topN} Products Per Category',
+          description: 'Best performing products in each category by revenue',
+          dataKey: 'total_revenue',
           data: topProductsByCategory,
           xAxisKey: 'name'
         },
@@ -574,7 +564,7 @@ const OrdersAnalytics = () => {
   }, [startDate, endDate, selectedGenders, selectedAgeGroups, selectedCountries, selectedCities, countries, availableCities]);
 
   const fetchProductsData = useCallback(async () => {
-    if (isLoadingRef.current) return; // Prevent duplicate calls
+    if (isLoadingRef.current) return;
     isLoadingRef.current = true;
     setLoading(true);
     try {
@@ -590,21 +580,15 @@ const OrdersAnalytics = () => {
         .filter(Boolean)
         .join(',');
 
-      const selectedCategoryNames = selectedCategories
-        .map(id => availableCategories.find(c => c.id === id)?.name)
-        .filter(Boolean)
-        .join(',');
-
       // Fetch Top Performing Products (by revenue)
       const topProductsParams = new URLSearchParams({
-        metric: selectedMetric,
+        metric: 'revenue',
         order: 'DESC',
         start_date: startDate,
         end_date: endDate
       });
-      if (selectedCategoryNames) topProductsParams.append('categories', selectedCategoryNames);
-      if (selectedCountryNames) topProductsParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
-      if (selectedCityNames) topProductsParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
+      if (selectedCountryNames) topProductsParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) topProductsParams.append('cities', selectedCityNames);
       
       const topProductsRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing?${topProductsParams}`
@@ -616,14 +600,13 @@ const OrdersAnalytics = () => {
 
       // Fetch Top Products Per Category (top 3 per category)
       const topPerCategoryParams = new URLSearchParams({
-        metric: selectedMetric,
-        top_n: '3',
+        metric: 'revenue',
+        top_n: topN.toString(),
         start_date: startDate,
         end_date: endDate
       });
-      if (selectedCategoryNames) topPerCategoryParams.append('categories', selectedCategoryNames);
-      if (selectedCountryNames) topPerCategoryParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
-      if (selectedCityNames) topPerCategoryParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
+      if (selectedCountryNames) topPerCategoryParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) topPerCategoryParams.append('cities', selectedCityNames);
       
       const topPerCategoryRes = await fetch(
         `${API_BASE_URL}/api/products/top-performing-per-category?${topPerCategoryParams}`
@@ -637,11 +620,11 @@ const OrdersAnalytics = () => {
       const categoryPerfParams = new URLSearchParams({
         time_granularity: timeCategory,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        limit: topN.toString()
       });
-      if (selectedCategoryNames) categoryPerfParams.append('categories', selectedCategoryNames);
-      if (selectedCountryNames) categoryPerfParams.append('countries', selectedCountryNames);  // MAKE SURE THIS IS HERE
-      if (selectedCityNames) categoryPerfParams.append('cities', selectedCityNames);  // MAKE SURE THIS IS HERE
+      if (selectedCountryNames) categoryPerfParams.append('countries', selectedCountryNames);
+      if (selectedCityNames) categoryPerfParams.append('cities', selectedCityNames);
       
       const categoryPerfRes = await fetch(
         `${API_BASE_URL}/api/products/category-performance?${categoryPerfParams}`
@@ -657,7 +640,7 @@ const OrdersAnalytics = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, selectedCategories, countries, availableCities, availableCategories]);
+  }, [startDate, endDate, selectedTime, selectedCountries, selectedCities, countries, availableCities, topN]);
 
   const fetchRiderData = useCallback(async () => {
     if (isLoadingRef.current) return; // Prevent duplicate calls
@@ -738,12 +721,6 @@ const OrdersAnalytics = () => {
       if (ageGroupDropdownRef.current && !ageGroupDropdownRef.current.contains(event.target)) {
         setShowAgeGroupDropdown(false);
       }
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
-        setShowCategoryDropdown(false);
-      }
-      if (metricDropdownRef.current && !metricDropdownRef.current.contains(event.target)) {
-        setShowMetricDropdown(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -820,22 +797,6 @@ const OrdersAnalytics = () => {
 
     fetchCities();
   }, [selectedCountries, countries]);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/filters/categories`);
-        const data = await response.json();
-        if (data.success) {
-          setAvailableCategories(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    };
-    
-    fetchCategories();
-  }, []);
 
   // Fetch data on tab change (only on initial mount and tab switch)
   useEffect(() => {
@@ -1163,85 +1124,28 @@ const OrdersAnalytics = () => {
             </div>
           </div>
 
-            {/* Category Dropdown */}
-            {activeTab === 'products' && (
-              <div className="filter-item" ref={categoryDropdownRef}>
-                <label className="filter-label">Product Categories</label>
-                <div className="dropdown-container">
-                  <div 
-                    className="dropdown-header"
-                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  >
-                    <span className={selectedCategories.length === 0 ? 'placeholder' : ''}>
-                      {selectedCategories.length === 0 
-                        ? 'Select...' 
-                        : selectedCategories.length <= 2 
-                          ? selectedCategories.map(id => 
-                              availableCategories.find(c => c.id === id)?.name || id
-                            ).join(', ')
-                          : `${selectedCategories.length} categories selected`}
-                    </span>
-                    <ChevronDown className={`dropdown-arrow ${showCategoryDropdown ? 'rotate' : ''}`} />
-                  </div>
-                  
-                  {showCategoryDropdown && (
-                    <div className="dropdown-options">
-                      {availableCategories.map(category => (
-                        <div 
-                          key={category.id}
-                          className={`dropdown-option ${selectedCategories.includes(category.id) ? 'selected' : ''}`}
-                          onClick={() => toggleSelection(category.id, selectedCategories, setSelectedCategories)}
-                        >
-                          <span className="checkbox">
-                            {selectedCategories.includes(category.id) && <Check size={14} />}
-                          </span>
-                          {category.name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+          {/* Top N Categories Input */}
+          {activeTab === 'products' && (
+            <div className="filter-item">
+              <label className="filter-label">Number of Top Categories</label>
+              <input
+                type="number"
+                className="date-input"
+                value={topN}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 5;
+                  setTopN(Math.min(Math.max(value, 1), 7)); // limit between 1 and 7
+                }}
+                min="1"
+                max="7"
+                placeholder="Enter 1-7"
+              />
+              <small style={{ color: '#888', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
+                Show top 1-7 categories
+              </small>
+            </div>
+          )}
 
-            {/* Metric Dropdown */}
-            {activeTab === 'products' && (
-              <div className="filter-item" ref={metricDropdownRef}>
-                <label className="filter-label">Metric</label>
-                <div className="dropdown-container">
-                  <div 
-                    className="dropdown-header"
-                    onClick={() => setShowMetricDropdown(!showMetricDropdown)}
-                  >
-                    <span>
-                      {metricOptions.find(m => m.value === selectedMetric)?.label || 'Select...'}
-                    </span>
-                    <ChevronDown className={`dropdown-arrow ${showMetricDropdown ? 'rotate' : ''}`} />
-                  </div>
-                  
-                  {showMetricDropdown && (
-                    <div className="dropdown-options">
-                      {metricOptions.map(option => (
-                        <div 
-                          key={option.value}
-                          className={`dropdown-option ${selectedMetric === option.value ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedMetric(option.value);
-                            setShowMetricDropdown(false);
-                          }}
-                        >
-                          <span className="checkbox">
-                            {selectedMetric === option.value && <Check size={14} />}
-                          </span>
-                          {option.label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
             {/* Filter Button */}
             <button 
               className="filter-button"
