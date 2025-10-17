@@ -268,11 +268,12 @@ const OrdersAnalytics = () => {
         },
         {
           type: 'bar',
-          title: 'Top ${topN} Products Per Category',
+          title: 'Top Products Per Category',
           description: 'Best performing products in each category by revenue',
           dataKey: 'total_revenue',
           data: topProductsByCategory,
-          xAxisKey: 'name'
+          xAxisKey: 'name',
+          useMultipleColors: true
         },
         {
           type: 'bar',
@@ -1278,7 +1279,6 @@ const OrdersAnalytics = () => {
                               <Tooltip />
                               <Legend />
                               
-                              {/* Handle stacked bar chart for demographics */}
                               {chart.isStacked && chart.data.length > 0 ? (
                                 Object.keys(chart.data[0])
                                   .filter(key => key !== 'location' && key !== chart.xAxisKey)
@@ -1290,6 +1290,15 @@ const OrdersAnalytics = () => {
                                       fill={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff'][index % 6]} 
                                     />
                                   ))
+                              ) : chart.useMultipleColors ? (
+                                <Bar dataKey={chart.dataKey} radius={[4, 4, 0, 0]}>
+                                  {chart.data.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-${index}`} 
+                                      fill={['#3b82f6', '#CAADFF', '#FFD1E7', '#F7CB81', '#81E6C4', '#06b6d4', '#F1E063'][index % 7]} 
+                                    />
+                                  ))}
+                                </Bar>
                               ) : (
                                 <Bar 
                                   dataKey={chart.dataKey} 
