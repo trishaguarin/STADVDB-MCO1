@@ -69,12 +69,12 @@ def analyze_performance():
     Analyze query performance before and after optimization.
     Tests various query patterns to demonstrate optimization benefits.
     """
-    # Run 1 conditions: 1 country, 1 profuct category, 1 month, 1 courier
+    # Run 1 conditions: 1 country, 1 product category, 1 month, 1 courier
     # Run 2 conditions: 5 countries, 3 product categories, 4 months, 2 couriers
-    # Run 3 conditions: At most 5 cities, 5 categories, 3 couriers, and 9-month time period included in queries
+    # Run 3 conditions: 5 cities, 5 categories, 3 couriers, and 9-month time period
     test_queries = {
-        "Q1: Total Orders Over Time": 
-            """ SELECT 
+        "Q1: Total Orders Over Time":
+            """ SELECT
                     DATE_FORMAT(o.createdAt, '%Y-%m') as period,
                     COUNT(DISTINCT o.orderID) as total_orders
                 FROM FactOrders o
@@ -82,22 +82,23 @@ def analyze_performance():
                 WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
                 GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
             """,
-        
-        "Q2: Total Sales Per Location": 
-            """ SELECT 
+       
+        "Q2: Total Sales Per Location":
+            """ SELECT
                     u.city as location,
                     SUM(o.quantity * p.price) as total_sales
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01' 
+                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 GROUP BY u.city
                 ORDER BY total_sales DESC
             """,
 
-        "Q3: Orders by Demographics": 
-            """ SELECT 
+
+        "Q3: Orders by Demographics":
+            """ SELECT
                     u.gender,
                     CASE
                         WHEN TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 THEN '18-24'
@@ -112,16 +113,17 @@ def analyze_performance():
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.createdAt BETWEEN '2025-06-01' AND '2025-10-01' 
+                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                AND u.gender = 'F' AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24 
+                AND u.gender = 'F' AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24
                 GROUP BY u.gender, age_group, u.city
                 ORDER BY total_orders DESC
             """,
 
-        "Q4: Top-performing per Category": 
+
+        "Q4: Top-performing per Category":
             """ WITH ranked_products AS (
-                    SELECT 
+                    SELECT
                         p.name,
                         p.category,
                         SUM(o.quantity) AS total_quantity,
@@ -139,7 +141,7 @@ def analyze_performance():
                         AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                     GROUP BY p.productID, p.name, p.category
                 )
-                SELECT 
+                SELECT
                     name,
                     category,
                     total_quantity,
@@ -148,9 +150,9 @@ def analyze_performance():
                 WHERE category_rank <= 3
                 ORDER BY category, category_rank
             """,
-        
+       
         "Q5: Delivery Time":
-            """ SELECT 
+            """ SELECT
                     DATE(o.createdAt) as period,
                     u.city as location,
                     r.courierName as courier_name,
@@ -165,6 +167,7 @@ def analyze_performance():
                 ORDER BY avg_delivery_days
                 LIMIT 50
             """
+
     }
     
     print("\n" + "="*80)
