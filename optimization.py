@@ -69,7 +69,8 @@ def analyze_performance():
     Analyze query performance before and after optimization.
     Tests various query patterns to demonstrate optimization benefits.
     """
-    
+    # Run 1 conditions: 1 country, 1 profuct category, 1 month, 1 courier
+    # Run 2 conditions: 5 countries, 3 product categories, 4 months, 2 couriers
     # Run 3 conditions: At most 5 cities, 5 categories, 3 couriers, and 9-month time period included in queries
     test_queries = {
         "Q1: Total Orders Over Time": 
@@ -81,50 +82,8 @@ def analyze_performance():
                 WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
                 GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
             """,
-
-        "Q2: Total Orders Per Location": 
-            """ SELECT 
-                    u.city as location,
-                    COUNT(DISTINCT o.orderID) as total_orders
-                FROM FactOrders o 
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                    AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY u.city
-                ORDER BY total_orders DESC
-            """,
-
-        "Q3: Total Orders Per Product Category": 
-            """ SELECT
-                    DATE(o.createdAt) as period, 
-                    p.category,
-                    COUNT(DISTINCT o.orderID) as total_orders 
-                FROM FactOrders o
-                JOIN DimProducts p ON o.productID = p.productID
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                    AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY DATE(o.createdAt), p.category
-                ORDER BY period
-            """,
-
-        "Q4: Total Sales Over Time": 
-            """ SELECT
-                    COUNT(DISTINCT o.orderID) as total_orders
-                FROM FactOrders o
-                JOIN DimProducts p ON o.productID = p.productID
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                    AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                    AND p.category IN ('Electronics', 'Appliances', 'Toys', 'Bags', 'Gadgets')
-                GROUP BY p.category 
-                ORDER BY total_orders DESC
-            """,
         
-        "Q5: Total Sales Per Location": 
+        "Q2: Total Sales Per Location": 
             """ SELECT 
                     u.city as location,
                     SUM(o.quantity * p.price) as total_sales
@@ -137,20 +96,7 @@ def analyze_performance():
                 ORDER BY total_sales DESC
             """,
 
-        "Q6: Total Sales per Product Category (per Time)": 
-            """ SELECT 
-                    p.category,
-                    SUM(o.quantity * p.price) as total_sales
-                FROM FactOrders o
-                JOIN DimProducts p ON o.productID = p.productID
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01' 
-                AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY p.category
-                ORDER BY total_sales DESC
-            """,
-
-        "Q7: Orders by Demographics": 
+        "Q3: Orders by Demographics": 
             """ SELECT 
                     u.gender,
                     CASE
@@ -173,34 +119,7 @@ def analyze_performance():
                 ORDER BY total_orders DESC
             """,
 
-        "Q8: Customer Segments":
-            """ SELECT 
-                    u.gender as segment,
-                    SUM(o.quantity * p.price) as total_revenue
-                FROM FactOrders o
-                JOIN DimUsers u ON o.userID = u.userID
-                JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                GROUP BY u.gender
-                ORDER BY total_revenue DESC
-            """,
-
-        "Q9: Top-Selling Products": 
-            """ SELECT 
-                    p.name,
-                    p.category,
-                    SUM(o.quantity * p.price) as total
-                FROM FactOrders o
-                RIGHT JOIN DimProducts p ON o.productID = p.productID
-                INNER JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01' 
-                AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY p.productID, p.category
-                ORDER BY total DESC
-            """,
-
-        "Q10: Top-performing per Category": 
+        "Q4: Top-performing per Category": 
             """ WITH ranked_products AS (
                     SELECT 
                         p.name,
@@ -229,40 +148,8 @@ def analyze_performance():
                 WHERE category_rank <= 3
                 ORDER BY category, category_rank
             """,
-            
-        "Q11: Price Trends":
-            """ SELECT 
-                    DATE(o.createdAt) as period,
-                    p.category,
-                    AVG(o.quantity * p.price) as avg_order_value
-                FROM FactOrders o
-                JOIN DimProducts p ON o.productID = p.productID
-                INNER JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                    AND p.category IN ('Electronics', 'Appliances', 'Toys', 'Bags', 'Gadgets')
-                    AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY p.category, DATE(o.createdAt)
-                ORDER BY avg_order_value DESC
-            """,
-
-        "Q12: Orders per Rider":
-            """ SELECT 
-                    DATE(o.createdAt) as period,
-                    r.courierName as courier_name,
-                    COUNT(DISTINCT o.orderID) as total_orders
-                FROM FactOrders o
-                JOIN DimRiders r ON o.riderID = r.riderID
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt >= '2025-01-01'
-                    AND o.createdAt <= '2025-10-01'
-                    AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                    AND r.courierName IN ('JNT', 'FEDEZ', 'LBCD')
-                GROUP BY r.courierName, period
-                ORDER BY total_orders DESC
-            """,
         
-        "Q13: Delivery Time":
+        "Q5: Delivery Time":
             """ SELECT 
                     DATE(o.createdAt) as period,
                     u.city as location,
@@ -340,20 +227,9 @@ def analyze_performance():
             print(f"{desc:<50} {'ERROR':<12} {'ERROR':<12} {'N/A':<15}")
     
     print("\n" + "="*80)
-    print("OPTIMIZATION STRATEGIES EMPLOYED:")
-    print("="*80)
-
 
 if __name__ == '__main__':
     print("Starting Database Optimization Process...")
     print("="*80)
     
-    # Option 1: Full analysis (drop, test, create, test)
     analyze_performance()
-    
-    # Option 2: Just create indexes without testing
-    # create_indexes()
-    
-    print("\n" + "="*80)
-    print("✓ Optimization process completed!")
-    print("="*80)
