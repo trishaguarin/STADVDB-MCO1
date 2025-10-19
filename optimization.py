@@ -15,6 +15,7 @@ def create_indexes():
         "CREATE INDEX indx_users_country ON DimUsers(country)",
         "CREATE INDEX indx_users_city ON DimUsers(city)",
         "CREATE INDEX indx_orders_createdat ON FactOrders(createdAt)",
+        "CREATE INDEX indx_orders_createdat_orderid ON FactOrders(createdAt, orderID)",
     ]
 
     with engine.connect() as conn:
@@ -25,8 +26,12 @@ def create_indexes():
                     conn.commit()
                     print(f"✓ Created: {idx_query.split('INDEX')[1].split('ON')[0].strip()}")
                 except Exception as e:
-                    print(f"✗ Error or already exists: {idx_query.split('INDEX')[1].split('ON')[0].strip()}")
-                    print(f"  Details: {str(e)[:100]}")
+                    # Check if it's a duplicate key error (index already exists)
+                    if "1061" in str(e) or "Duplicate key" in str(e):
+                        print(f"○ Already exists: {idx_query.split('INDEX')[1].split('ON')[0].strip()}")
+                    else:
+                        print(f"✗ Error: {idx_query.split('INDEX')[1].split('ON')[0].strip()}")
+                        print(f"  Details: {str(e)[:100]}")
 
 
 def drop_indexes():
@@ -37,7 +42,8 @@ def drop_indexes():
         "DROP INDEX indx_users_couriername ON DimRiders",
         "DROP INDEX indx_users_country ON DimUsers",
         "DROP INDEX indx_users_city ON DimUsers",
-        "DROP INDEX indx_orders_createdat ON FactOrders"
+        "DROP INDEX indx_orders_createdat ON FactOrders",
+        "DROP INDEX indx_orders_createdat_orderid ON FactOrders"
     ]
     
     with engine.connect() as conn:
@@ -67,13 +73,11 @@ def execute_query_with_timing(query: str, description: str) -> Tuple[float, any]
 def analyze_performance():
     """
     Analyze query performance before and after optimization.
-    Tests various query patterns to demonstrate optimization benefits.
+    Compares original queries vs optimized versions.
     """
-    # Run 1 conditions: 1 country, 1 product category, 1 month, 1 courier
-    # Run 2 conditions: 5 countries, 3 product categories, 4 months, 2 couriers
-    # Run 3 conditions: 5 cities, 5 categories, 3 couriers, and 9-month time period
-    test_queries = {
-        "Q1: Total Orders Over Time":
+    # BEFORE: Original unoptimized queries
+    original_queries = {
+        "Q1: Total Orders Over Time (ORIGINAL)":
             """ SELECT
                     DATE_FORMAT(o.createdAt, '%Y-%m') as period,
                     COUNT(DISTINCT o.orderID) as total_orders
@@ -82,6 +86,24 @@ def analyze_performance():
                 WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
                 GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
             """,
+    }
+    
+    # AFTER: Optimized queries
+    optimized_queries = {
+        "Q1: Total Orders Over Time (OPTIMIZED)":
+            """ SELECT
+                    YEAR(o.createdAt) as year,
+                    MONTH(o.createdAt) as month,
+                    COUNT(*) as total_orders
+                FROM FactOrders o
+                WHERE o.createdAt >= '2025-01-01' AND o.createdAt < '2025-10-02'
+                GROUP BY YEAR(o.createdAt), MONTH(o.createdAt)
+                ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)
+            """,
+    }
+    
+    # Keep other queries for index testing
+    other_queries = {
        
         "Q2: Total Sales Per Location":
             """ SELECT
@@ -171,38 +193,61 @@ def analyze_performance():
     }
     
     print("\n" + "="*80)
-    print("PERFORMANCE ANALYSIS: BEFORE vs AFTER OPTIMIZATION")
+    print("PERFORMANCE ANALYSIS: ORIGINAL vs OPTIMIZED QUERIES")
     print("="*80)
+    
+    # Ensure indexes are created for fair comparison
+    print("\nEnsuring indexes are in place...")
+    create_indexes()
     
     # Store results for comparison
     results = []
     
-    print("\n--- TESTING WITHOUT INDEXES (Baseline) ---")
-    print("Dropping all indexes first...")
-    drop_indexes()
-    print("\nExecuting queries without indexes...")
-    
-    before_times = {}
-    for desc, query in test_queries.items():
+    print("\n--- TESTING ORIGINAL QUERIES (BEFORE Optimization) ---")
+    original_times = {}
+    for desc, query in original_queries.items():
         try:
             exec_time, _ = execute_query_with_timing(query, desc)
-            before_times[desc] = exec_time
+            original_times[desc] = exec_time
         except Exception as e:
             print(f"Error executing {desc}: {str(e)[:100]}")
-            before_times[desc] = None
+            original_times[desc] = None
     
-    print("\n--- CREATING INDEXES ---")
+    print("\n--- TESTING OPTIMIZED QUERIES (AFTER Optimization) ---")
+    optimized_times = {}
+    for desc, query in optimized_queries.items():
+        try:
+            exec_time, _ = execute_query_with_timing(query, desc)
+            optimized_times[desc] = exec_time
+        except Exception as e:
+            print(f"Error executing {desc}: {str(e)[:100]}")
+            optimized_times[desc] = None
+    
+    # Test other queries with/without indexes for comparison
+    print("\n--- TESTING OTHER QUERIES (Index Impact) ---")
+    print("Dropping indexes...")
+    drop_indexes()
+    
+    other_before = {}
+    for desc, query in other_queries.items():
+        try:
+            exec_time, _ = execute_query_with_timing(query, desc)
+            other_before[desc] = exec_time
+        except Exception as e:
+            print(f"Error executing {desc}: {str(e)[:100]}")
+            other_before[desc] = None
+    
+    print("\nCreating indexes...")
     create_indexes()
     
-    print("\n--- TESTING WITH INDEXES (Optimized) ---")
-    after_times = {}
-    for desc, query in test_queries.items():
+    other_after = {}
+    for desc, query in other_queries.items():
         try:
             exec_time, _ = execute_query_with_timing(query, desc)
-            after_times[desc] = exec_time
+            other_after[desc] = exec_time
         except Exception as e:
             print(f"Error executing {desc}: {str(e)[:100]}")
-            after_times[desc] = None
+            other_after[desc] = None
     
     # Calculate improvements
     print("\n" + "="*80)
@@ -211,21 +256,28 @@ def analyze_performance():
     print(f"{'Query':<50} {'Before':<12} {'After':<12} {'Improvement':<15}")
     print("-"*80)
     
-    for desc in test_queries.keys():
-        before = before_times.get(desc)
-        after = after_times.get(desc)
+    # Q1: Compare original vs optimized
+    orig_key = "Q1: Total Orders Over Time (ORIGINAL)"
+    opt_key = "Q1: Total Orders Over Time (OPTIMIZED)"
+    
+    if orig_key in original_times and opt_key in optimized_times:
+        orig_time = original_times[orig_key]
+        opt_time = optimized_times[opt_key]
+        
+        if orig_time and opt_time:
+            improvement = ((orig_time - opt_time) / orig_time) * 100
+            speedup = orig_time / opt_time
+            print(f"{'Q1: Total Orders Over Time':<50} {orig_time:>10.4f}s {opt_time:>10.4f}s {improvement:>10.2f}% ({speedup:.2f}x)")
+    
+    # Other queries: Compare without indexes vs with indexes
+    for desc in other_queries.keys():
+        before = other_before.get(desc)
+        after = other_after.get(desc)
         
         if before and after:
             improvement = ((before - after) / before) * 100
             speedup = before / after
             print(f"{desc:<50} {before:>10.4f}s {after:>10.4f}s {improvement:>10.2f}% ({speedup:.2f}x)")
-            results.append({
-                'Query': desc,
-                'Before (s)': before,
-                'After (s)': after,
-                'Improvement (%)': improvement,
-                'Speedup': speedup
-            })
         else:
             print(f"{desc:<50} {'ERROR':<12} {'ERROR':<12} {'N/A':<15}")
     

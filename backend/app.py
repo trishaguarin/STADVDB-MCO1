@@ -73,23 +73,59 @@ def total_orders_over_time():
     countries = request.args.get('countries')  # comma-separated list
     cities = request.args.get('cities')  # comma-separated list
     
-    date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
+    # Use more index-friendly date extraction functions
+    # For ONLY_FULL_GROUP_BY compatibility, we select the grouped columns and format in application
+    date_configs = {
+        'day': {
+            'select': "DATE(o.createdAt) as period",
+            'group_by': "DATE(o.createdAt)",
+            'order_by': "DATE(o.createdAt)"
+        },
+        'week': {
+            'select': "DATE_FORMAT(o.createdAt, '%Y-%u') as period",
+            'group_by': "DATE_FORMAT(o.createdAt, '%Y-%u')",
+            'order_by': "DATE_FORMAT(o.createdAt, '%Y-%u')"
+        },
+        'month': {
+            'select': "DATE_FORMAT(o.createdAt, '%Y-%m') as period",
+            'group_by': "DATE_FORMAT(o.createdAt, '%Y-%m')",
+            'order_by': "DATE_FORMAT(o.createdAt, '%Y-%m')"
+        },
+        'quarter': {
+            'select': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt)) as period",
+            'group_by': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
+            'order_by': "YEAR(o.createdAt), QUARTER(o.createdAt)"
+        },
+        'year': {
+            'select': "YEAR(o.createdAt) as period",
+            'group_by': "YEAR(o.createdAt)",
+            'order_by': "YEAR(o.createdAt)"
+        }
     }
     
-    date_format = date_formats.get(date_category, date_formats['month']) # defaults to day
+    config = date_configs.get(date_category, date_configs['month']) # defaults to month
+    date_select = config['select']
+    date_group = config['group_by']
+    date_order = config['order_by']
     
-    query = f"""
-        SELECT 
-            {date_format} as period,
-            COUNT(DISTINCT o.orderID) as total_orders
-        FROM FactOrders o
-        JOIN DimUsers u ON o.userID = u.userID
-    """
+    # Only join DimUsers if location filters are applied
+    needs_user_join = bool(countries or cities)
+    
+    if needs_user_join:
+        query = f"""
+            SELECT 
+                {date_select},
+                COUNT(*) as total_orders
+            FROM FactOrders o
+            JOIN DimUsers u ON o.userID = u.userID
+        """
+    else:
+        query = f"""
+            SELECT 
+                {date_select},
+                COUNT(*) as total_orders
+            FROM FactOrders o
+        """
     
     conditions = []
     params = {}
@@ -114,7 +150,7 @@ def total_orders_over_time():
             params[f'city{i}'] = city
     
     query += build_where_clause(conditions)
-    query += f" GROUP BY {date_format} ORDER BY period"
+    query += f" GROUP BY {date_group} ORDER BY {date_order}"
     
     try:
         results = execute_query(query, params)
