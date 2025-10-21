@@ -312,7 +312,7 @@ const OrdersAnalytics = () => {
           description: `How many orders were delivered by each courier this ${selectedTime}?`,
           dataKey: 'total_orders',
           data: ordersPerRider.slice(0, 20),
-          xAxisKey: 'courier_name'
+          xAxisKey: 'label'
         },
         {
           type: 'bar',
@@ -320,7 +320,7 @@ const OrdersAnalytics = () => {
           description: `What is the average time of order delivery by courier?`,
           dataKey: 'avg_delivery_days',
           data: deliveryPerformance.slice(0, 20),
-          xAxisKey: 'courier_name'
+          xAxisKey: 'label'
         }
       ]
     }

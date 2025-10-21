@@ -890,6 +890,7 @@ def orders_per_rider():
         SELECT 
             {date_format} as period,
             r.courierName as courier_name,
+            CONCAT({date_format}, ' - ', r.courierName) as label,
             COUNT(DISTINCT o.orderID) as total_orders
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
@@ -953,6 +954,7 @@ def delivery_performance():
         SELECT 
             {date_format} as period,
             r.courierName as courier_name,
+            CONCAT({date_format}, ' - ', r.courierName) as label,
             AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days
         FROM FactOrders o
         JOIN DimRiders r ON o.riderID = r.riderID
