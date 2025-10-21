@@ -94,7 +94,7 @@ def total_orders_over_time():
         'quarter': {
             'select': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate)) as period",
             'group_by': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
-            'order_by': "YEAR(o.deliveryDate), QUARTER(o.deliveryDate)"
+            'order_by': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))"
         },
         'year': {
             'select': "YEAR(o.deliveryDate) as period",
@@ -311,7 +311,7 @@ def total_sales_over_time():
             params[f'city{i}'] = city
     
     query += build_where_clause(conditions)
-    query += f" GROUP BY {date_format} ORDER BY period"
+    query += f" GROUP BY {date_format} ORDER BY {date_format}"
     
     try:
         results = execute_query(query, params)
@@ -811,8 +811,8 @@ def category_performance():
         JOIN DimProducts p ON o.productID = p.productID
         INNER JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY p.category, {date_format}
-        ORDER BY period, p.category
+        GROUP BY {date_format}, p.category
+        ORDER BY {date_format}, p.category
     """
     
     try:
@@ -895,8 +895,8 @@ def orders_per_rider():
         JOIN DimRiders r ON o.riderID = r.riderID
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
-        GROUP BY r.courierName, {date_format}
-        ORDER BY total_orders DESC
+        GROUP BY {date_format}, r.courierName
+        ORDER BY {date_format}, total_orders DESC
     """
     
     try:
@@ -959,7 +959,7 @@ def delivery_performance():
         JOIN DimUsers u ON o.userID = u.userID
         {where_clause}
         GROUP BY {date_format}, r.courierName
-        ORDER BY avg_delivery_days
+        ORDER BY {date_format}, avg_delivery_days
     """
     
     try:
