@@ -79,12 +79,12 @@ def analyze_performance():
     original_queries = {
         "Q1: Total Orders Over Time (ORIGINAL)":
             """ SELECT
-                    DATE_FORMAT(o.createdAt, '%Y-%m') as period,
+                    DATE_FORMAT(o.deliveryDate, '%Y-%m') as period,
                     COUNT(DISTINCT o.orderID) as total_orders
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
-                GROUP BY DATE_FORMAT(o.createdAt, '%Y-%m')
+                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
+                GROUP BY DATE_FORMAT(o.deliveryDate, '%Y-%m')
             """,
     }
     
@@ -92,13 +92,13 @@ def analyze_performance():
     optimized_queries = {
         "Q1: Total Orders Over Time (OPTIMIZED)":
             """ SELECT
-                    YEAR(o.createdAt) as year,
-                    MONTH(o.createdAt) as month,
+                    YEAR(o.deliveryDate) as year,
+                    MONTH(o.deliveryDate) as month,
                     COUNT(*) as total_orders
                 FROM FactOrders o
-                WHERE o.createdAt >= '2025-01-01' AND o.createdAt < '2025-10-02'
-                GROUP BY YEAR(o.createdAt), MONTH(o.createdAt)
-                ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)
+                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate < '2025-10-02'
+                GROUP BY YEAR(o.deliveryDate), MONTH(o.deliveryDate)
+                ORDER BY YEAR(o.deliveryDate), MONTH(o.deliveryDate)
             """,
     }
     
@@ -112,7 +112,7 @@ def analyze_performance():
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
+                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 GROUP BY u.city
                 ORDER BY total_sales DESC
@@ -135,7 +135,7 @@ def analyze_performance():
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
+                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 AND u.gender = 'F' AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24
                 GROUP BY u.gender, age_group, u.city
@@ -157,8 +157,8 @@ def analyze_performance():
                     FROM FactOrders o
                     JOIN DimProducts p ON o.productID = p.productID
                     INNER JOIN DimUsers u ON o.userID = u.userID
-                    WHERE o.createdAt >= '2025-01-01'
-                        AND o.createdAt <= '2025-10-01'
+                    WHERE o.deliveryDate >= '2025-01-01'
+                        AND o.deliveryDate <= '2025-10-01'
                         AND p.category IN ('Electronics', 'Appliances', 'Toys', 'Bags', 'Gadgets')
                         AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                     GROUP BY p.productID, p.name, p.category
@@ -175,7 +175,7 @@ def analyze_performance():
        
         "Q5: Delivery Time":
             """ SELECT
-                    DATE(o.createdAt) as period,
+                    DATE(o.deliveryDate) as period,
                     u.city as location,
                     r.courierName as courier_name,
                     AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days
@@ -183,7 +183,7 @@ def analyze_performance():
                 JOIN DimRiders r ON o.riderID = r.riderID
                 JOIN DimUsers u ON o.userID = u.userID
                 WHERE r.courierName IN ('JNT', 'FEDEZ', 'LBCD')
-                AND o.createdAt BETWEEN '2025-01-01' AND '2025-10-01'
+                AND o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 GROUP BY period, u.city, r.courierName
                 ORDER BY avg_delivery_days

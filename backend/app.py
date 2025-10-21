@@ -77,29 +77,29 @@ def total_orders_over_time():
     # For ONLY_FULL_GROUP_BY compatibility, we select the grouped columns and format in application
     date_configs = {
         'day': {
-            'select': "DATE(o.createdAt) as period",
-            'group_by': "DATE(o.createdAt)",
-            'order_by': "DATE(o.createdAt)"
+            'select': "DATE(o.deliveryDate) as period",
+            'group_by': "DATE(o.deliveryDate)",
+            'order_by': "DATE(o.deliveryDate)"
         },
         'week': {
-            'select': "DATE_FORMAT(o.createdAt, '%Y-%u') as period",
-            'group_by': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-            'order_by': "DATE_FORMAT(o.createdAt, '%Y-%u')"
+            'select': "DATE_FORMAT(o.deliveryDate, '%Y-%u') as period",
+            'group_by': "DATE_FORMAT(o.deliveryDate, '%Y-%u')",
+            'order_by': "DATE_FORMAT(o.deliveryDate, '%Y-%u')"
         },
         'month': {
-            'select': "DATE_FORMAT(o.createdAt, '%Y-%m') as period",
-            'group_by': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-            'order_by': "DATE_FORMAT(o.createdAt, '%Y-%m')"
+            'select': "DATE_FORMAT(o.deliveryDate, '%Y-%m') as period",
+            'group_by': "DATE_FORMAT(o.deliveryDate, '%Y-%m')",
+            'order_by': "DATE_FORMAT(o.deliveryDate, '%Y-%m')"
         },
         'quarter': {
-            'select': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt)) as period",
-            'group_by': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-            'order_by': "YEAR(o.createdAt), QUARTER(o.createdAt)"
+            'select': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate)) as period",
+            'group_by': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
+            'order_by': "YEAR(o.deliveryDate), QUARTER(o.deliveryDate)"
         },
         'year': {
-            'select': "YEAR(o.createdAt) as period",
-            'group_by': "YEAR(o.createdAt)",
-            'order_by': "YEAR(o.createdAt)"
+            'select': "YEAR(o.deliveryDate) as period",
+            'group_by': "YEAR(o.deliveryDate)",
+            'order_by': "YEAR(o.deliveryDate)"
         }
     }
     
@@ -131,10 +131,10 @@ def total_orders_over_time():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -174,10 +174,10 @@ def orders_by_location():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -232,10 +232,10 @@ def orders_by_product_category():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -270,11 +270,11 @@ def total_sales_over_time():
     cities = request.args.get('cities')  # comma-separated list
     
     date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
+        'day': "DATE(o.deliveryDate)",
+        'week': "DATE_FORMAT(o.deliveryDate, '%Y-%u')",
+        'month': "DATE_FORMAT(o.deliveryDate, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
+        'year': "YEAR(o.deliveryDate)"
     }
     
     date_format = date_formats.get(date_category, date_formats['month']) 
@@ -292,10 +292,10 @@ def total_sales_over_time():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -335,10 +335,10 @@ def sales_by_location():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -385,10 +385,10 @@ def sales_by_product_category():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -478,10 +478,10 @@ def orders_by_demographics():
             conditions.append(f"({' OR '.join(age_conditions)})")
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     
     if countries:
@@ -566,10 +566,10 @@ def customer_segments_revenue():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
 
     where_clause = build_where_clause(conditions)
@@ -608,11 +608,11 @@ def top_performing_products(): #general, works also for lowest sales
     params = {}
 
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
 
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
         
     if categories:
@@ -679,11 +679,11 @@ def top_per_category(): #specific
     }
 
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
 
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
 
     if category:
@@ -760,11 +760,11 @@ def category_performance():
     cities = request.args.get('cities')
 
     date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')",
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
+        'day': "DATE(o.deliveryDate)",
+        'week': "DATE_FORMAT(o.deliveryDate, '%Y-%u')",
+        'month': "DATE_FORMAT(o.deliveryDate, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
+        'year': "YEAR(o.deliveryDate)"
     }
 
     date_format = date_formats.get(date_category, date_formats['month'])
@@ -773,10 +773,10 @@ def category_performance():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
         
     if categories:
@@ -853,11 +853,11 @@ def orders_per_rider():
     cities = request.args.get('cities')  # comma-separated list
     
     date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')", 
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
+        'day': "DATE(o.deliveryDate)",
+        'week': "DATE_FORMAT(o.deliveryDate, '%Y-%u')", 
+        'month': "DATE_FORMAT(o.deliveryDate, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
+        'year': "YEAR(o.deliveryDate)"
     }
     
     date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
@@ -866,10 +866,10 @@ def orders_per_rider():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
@@ -916,11 +916,11 @@ def delivery_performance():
     cities = request.args.get('cities')  # comma-separated list
     
     date_formats = {
-        'day': "DATE(o.createdAt)",
-        'week': "DATE_FORMAT(o.createdAt, '%Y-%u')", 
-        'month': "DATE_FORMAT(o.createdAt, '%Y-%m')",
-        'quarter': "CONCAT(YEAR(o.createdAt), '-Q', QUARTER(o.createdAt))",
-        'year': "YEAR(o.createdAt)"
+        'day': "DATE(o.deliveryDate)",
+        'week': "DATE_FORMAT(o.deliveryDate, '%Y-%u')", 
+        'month': "DATE_FORMAT(o.deliveryDate, '%Y-%m')",
+        'quarter': "CONCAT(YEAR(o.deliveryDate), '-Q', QUARTER(o.deliveryDate))",
+        'year': "YEAR(o.deliveryDate)"
     }
     
     date_format = date_formats.get(date_category, date_formats['month']) # defaults to month
@@ -928,10 +928,10 @@ def delivery_performance():
     params = {}
     
     if start_date:
-        conditions.append("o.createdAt >= :start_date")
+        conditions.append("o.deliveryDate >= :start_date")
         params['start_date'] = start_date
     if end_date:
-        conditions.append("o.createdAt <= :end_date")
+        conditions.append("o.deliveryDate <= :end_date")
         params['end_date'] = end_date
     if countries:
         country_list = countries.split(',')
