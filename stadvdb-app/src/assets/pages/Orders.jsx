@@ -66,6 +66,21 @@ const OrdersAnalytics = () => {
   const [ordersPerRider, setOrdersPerRider] = useState([]);
   const [deliveryPerformance, setDeliveryPerformance] = useState([]);
 
+  // Transform rider data for stacked charts
+  const transformRiderData = (data) => {
+    const grouped = {};
+    data.forEach(item => {
+      if (!grouped[item.period]) {
+        grouped[item.period] = { period: item.period };
+      }
+      grouped[item.period][item.courier_name] = item.total_orders || item.avg_delivery_days;
+    });
+    return Object.values(grouped);
+  };
+
+  const ordersPerRiderStacked = useMemo(() => transformRiderData(ordersPerRider), [ordersPerRider]);
+  const deliveryPerformanceStacked = useMemo(() => transformRiderData(deliveryPerformance), [deliveryPerformance]);
+
   // Memoize stats calculations to prevent re-renders
   const ordersStats = React.useMemo(() => [
     { title: 'Total Orders', value: ordersOverTime.reduce((sum, d) => sum + (d.total_orders || 0), 0).toLocaleString() },
@@ -310,17 +325,17 @@ const OrdersAnalytics = () => {
           type: 'bar',
           title: 'Orders per Rider',
           description: `How many orders were delivered by each courier this ${selectedTime}?`,
-          dataKey: 'total_orders',
-          data: ordersPerRider.slice(0, 20),
-          xAxisKey: 'label'
+          data: ordersPerRiderStacked,
+          xAxisKey: 'period',
+          isStacked: true
         },
         {
           type: 'bar',
           title: 'Delivery Time Performance',
           description: `What is the average time of order delivery by courier?`,
-          dataKey: 'avg_delivery_days',
-          data: deliveryPerformance.slice(0, 20),
-          xAxisKey: 'label'
+          data: deliveryPerformanceStacked,
+          xAxisKey: 'period',
+          isStacked: true
         }
       ]
     }
