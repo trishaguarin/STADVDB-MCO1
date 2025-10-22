@@ -14,8 +14,8 @@ def create_indexes():
         "CREATE INDEX indx_users_couriername ON DimRiders(couriername)",
         "CREATE INDEX indx_users_country ON DimUsers(country)",
         "CREATE INDEX indx_users_city ON DimUsers(city)",
-        "CREATE INDEX indx_orders_createdat ON FactOrders(createdAt)",
-        "CREATE INDEX indx_orders_createdat_orderid ON FactOrders(createdAt, orderID)",
+        "CREATE INDEX indx_orders_deliverydate ON FactOrders(deliveryDate)",
+        "CREATE INDEX indx_orders_deliverydate_orderid ON FactOrders(deliveryDate, orderID)",
     ]
 
     with engine.connect() as conn:
@@ -42,8 +42,8 @@ def drop_indexes():
         "DROP INDEX indx_users_couriername ON DimRiders",
         "DROP INDEX indx_users_country ON DimUsers",
         "DROP INDEX indx_users_city ON DimUsers",
-        "DROP INDEX indx_orders_createdat ON FactOrders",
-        "DROP INDEX indx_orders_createdat_orderid ON FactOrders"
+        "DROP INDEX indx_orders_deliverydate ON FactOrders",
+        "DROP INDEX indx_orders_deliverydate_orderid ON FactOrders"
     ]
     
     with engine.connect() as conn:
