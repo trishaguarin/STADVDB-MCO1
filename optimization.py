@@ -171,25 +171,7 @@ def analyze_performance():
                 FROM ranked_products
                 WHERE category_rank <= 3
                 ORDER BY category, category_rank
-            """,
-       
-        "Q5: Delivery Time":
-            """ SELECT
-                    DATE(o.deliveryDate) as period,
-                    u.city as location,
-                    r.courierName as courier_name,
-                    AVG(ABS(DATEDIFF(o.deliveryDate, o.createdAt))) as avg_delivery_days
-                FROM FactOrders o
-                JOIN DimRiders r ON o.riderID = r.riderID
-                JOIN DimUsers u ON o.userID = u.userID
-                WHERE r.courierName IN ('JNT', 'FEDEZ', 'LBCD')
-                AND o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
-                AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
-                GROUP BY period, u.city, r.courierName
-                ORDER BY avg_delivery_days
-                LIMIT 50
             """
-
     }
     
     print("\n" + "="*80)
