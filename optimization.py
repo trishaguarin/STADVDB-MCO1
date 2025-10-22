@@ -83,11 +83,11 @@ def analyze_performance():
                     COUNT(DISTINCT o.orderID) as total_orders
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
-                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
+                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate <= '2025-10-01'
                 GROUP BY DATE_FORMAT(o.deliveryDate, '%Y-%m')
             """,
     }
-    
+   
     # AFTER: Optimized queries
     optimized_queries = {
         "Q1: Total Orders Over Time (OPTIMIZED)":
@@ -96,12 +96,12 @@ def analyze_performance():
                     MONTH(o.deliveryDate) as month,
                     COUNT(*) as total_orders
                 FROM FactOrders o
-                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate < '2025-10-02'
+                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate <= '2025-10-01'
                 GROUP BY YEAR(o.deliveryDate), MONTH(o.deliveryDate)
                 ORDER BY YEAR(o.deliveryDate), MONTH(o.deliveryDate)
             """,
     }
-    
+   
     # Keep other queries for index testing
     other_queries = {
        
@@ -112,11 +112,13 @@ def analyze_performance():
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
+                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate <= '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 GROUP BY u.city
                 ORDER BY total_sales DESC
             """,
+
+
 
 
         "Q3: Orders by Demographics":
@@ -135,12 +137,14 @@ def analyze_performance():
                 FROM FactOrders o
                 JOIN DimUsers u ON o.userID = u.userID
                 JOIN DimProducts p ON o.productID = p.productID
-                WHERE o.deliveryDate BETWEEN '2025-01-01' AND '2025-10-01'
+                WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate <= '2025-10-01'
                 AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                 AND u.gender = 'F' AND TIMESTAMPDIFF(YEAR, u.dateofBirth, CURDATE()) BETWEEN 18 AND 24
                 GROUP BY u.gender, age_group, u.city
                 ORDER BY total_orders DESC
             """,
+
+
 
 
         "Q4: Top-performing per Category":
@@ -157,8 +161,7 @@ def analyze_performance():
                     FROM FactOrders o
                     JOIN DimProducts p ON o.productID = p.productID
                     INNER JOIN DimUsers u ON o.userID = u.userID
-                    WHERE o.deliveryDate >= '2025-01-01'
-                        AND o.deliveryDate <= '2025-10-01'
+                    WHERE o.deliveryDate >= '2025-01-01' AND o.deliveryDate <= '2025-10-01'
                         AND p.category IN ('Electronics', 'Appliances', 'Toys', 'Bags', 'Gadgets')
                         AND u.city IN ('Adrienfield', 'Alexandria', 'Alexzandermouth', 'Aliborough', 'Alisashire')
                     GROUP BY p.productID, p.name, p.category
